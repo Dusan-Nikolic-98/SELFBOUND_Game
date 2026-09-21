@@ -1,4 +1,17 @@
 {
+  "name": "selfbound-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SELFBOUND Week 3 Core TypeScript Canvas game",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run build && npm run serve",
+    "dev": "npm run build && npm run serve",
+    "build": "tsc -p tsconfig.json",
+    "serve": "node scripts/serve.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js"
+  },
   "devDependencies": {
     "@types/node": "^26.6.2",
     "ts-node": "^10.9.2",

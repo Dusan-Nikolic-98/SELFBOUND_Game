@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SELFBOUND</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="game-shell">
+      <header class="game-header">
+        <div>
+          <p class="eyebrow">WEEK 3 CORE</p>
+          <h1>SELFBOUND</h1>
+        </div>
+        <div class="controls" aria-label="Controls">
+          <span>A / D or arrow keys to move</span>
+          <span>Mouse to aim and fire</span>
+        </div>
+      </header>
+
+      <section class="game-frame" aria-label="SELFBOUND game">
+        <canvas id="game-canvas" width="1280" height="720" tabindex="0"></canvas>
+        <div class="hud" aria-live="polite">
+          <span id="lives">Lives: 3</span>
+          <span id="progress">Captures: 0 / 4</span>
+          <span id="state">Capture the marked target</span>
+        </div>
+        <div id="message" class="message" hidden></div>
+      </section>
+
+      <footer class="game-footer">
+        <button id="reset-level" type="button">Reset Level</button>
+        <span>Press R to reset the level.</span>
+      </footer>
+    </main>
+    <script type="module" src="./dist/main.js"></script>
+  </body>
+</html>

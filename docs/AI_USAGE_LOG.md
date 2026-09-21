@@ -4,7 +4,7 @@ Record significant coding-agent calls only. Do not store private chain-of-though
 
 | # | Phase | Why AI was called | Expected result | Actual result | Next decision |
 |---:|---|---|---|---|---|
-| 1 | Build V1 | Implement the Week 3 Core from the locked game specification | Working minimal browser game with tests/checks | TBD | TBD |
+| 1 | Build V1 | Implement the Week 3 Core from the locked game specification | Working minimal browser game with tests/checks | Implemented the TypeScript Canvas game, runtime validation, Core Level 1, HUD/reset flow, and five pure-logic tests. Typecheck, test, build, and a headless Edge smoke check passed. | Interactive evals and baseline evidence still require a human desktop-browser run. |
 
 ## Logging Guidance
 

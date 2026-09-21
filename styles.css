@@ -1,0 +1,116 @@
+:root {
+  color-scheme: dark;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  background: #0c101b;
+  color: #f4f7ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 20% 10%, #1b2c4d 0, transparent 34rem),
+    #0c101b;
+}
+
+.game-shell {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.game-header,
+.game-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.game-header { margin-bottom: 16px; }
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #6de5ff;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+}
+
+h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: 0.12em; }
+
+.controls,
+.game-footer {
+  color: #a9b6d0;
+  font-size: 0.85rem;
+}
+
+.controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; }
+
+.game-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #2d4167;
+  border-radius: 12px;
+  background: #11192b;
+  box-shadow: 0 18px 60px #03050c99;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  outline: none;
+}
+
+.hud {
+  position: absolute;
+  inset: 14px 16px auto;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  pointer-events: none;
+  color: #e9f1ff;
+  font-size: 0.9rem;
+  text-shadow: 0 1px 3px #000;
+}
+
+.hud span { padding: 6px 9px; border: 1px solid #49638e; border-radius: 6px; background: #11192bcc; }
+
+.message {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 30px;
+  border: 1px solid #6de5ff;
+  border-radius: 10px;
+  background: #10192eee;
+  color: #fff;
+  font-size: clamp(1.5rem, 4vw, 2.8rem);
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.game-footer { margin-top: 14px; }
+
+button {
+  border: 1px solid #6de5ff;
+  border-radius: 6px;
+  padding: 9px 14px;
+  background: #193050;
+  color: #f4f7ff;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:hover,
+button:focus-visible { background: #2c527e; }
+
+@media (max-width: 700px) {
+  .game-shell { padding: 12px; }
+  .game-header, .game-footer { align-items: flex-start; flex-direction: column; }
+  .controls { justify-content: flex-start; }
+}
