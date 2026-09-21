@@ -10,10 +10,10 @@ Do not change the expected result after seeing the implementation result.
 
 | ID | Scenario | Expected Result | Baseline | After Controlled Change | Status |
 |---|---|---|---|---|---|
-| E1 | Start a new game from the initial state | Player appears at the configured spawn, HUD shows 3 lives, and the game accepts movement input | TBD | TBD | TBD |
-| E2 | Walk off a platform and fall below the level bounds | Exactly one life is lost, gameplay state is reset to its initial state, and the remaining life count is preserved | TBD | TBD | TBD |
-| E3 | Fire at the current target from a valid position | The projectile reaches the target, the player teleports to the target, the enemy is removed, and sequence progress increases by one | TBD | TBD | TBD |
-| E4 | Trigger a real baseline failure discovered during manual testing | The documented defect is reproduced in the baseline and no longer reproduces after the controlled change | TBD | TBD | TBD |
+| E1 | Start a new game from the initial state | Player appears at the configured spawn, HUD shows 3 lives, and the game accepts movement input | Works | / | Pass |
+| E2 | Walk off a platform and fall below the level bounds | Exactly one life is lost, gameplay state is reset to its initial state, and the remaining life count is preserved | Works | / | Pass |
+| E3 | Fire at the current target from a valid position | The projectile reaches the target, the player teleports to the target, the enemy is removed, and sequence progress increases by one | Works | / | Pass |
+| E4 | Fire at all targets one by one to pass the level | All targets can be hit | Not all targets are reachable | / | Not done |
 
 ## Boundary Cases
 

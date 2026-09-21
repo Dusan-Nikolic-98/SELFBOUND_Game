@@ -51,65 +51,56 @@ Record the filename or location of the preserved baseline screenshot/video:
 
 ## 3. Selected Problem
 
-### Claim
+### 3.1. Claim:
+The Week 3 test suite (tests/logic.test.ts) should compile and run cleanly both from the
+command line (npm test) and inside the editor (VS Code), with no TypeScript errors.
 
-`TBD`
+### 3.2. Signal:
+VS Code marked the imports in tests/logic.test.ts as an error:
+  import assert from "node:assert/strict";
+  import test from "node:test";
+  -> "Cannot find name 'node:test'. Do you need to install type definitions for node?
+      Try `npm i --save-dev @types/node` and then add 'node' to the types field in your
+      tsconfig. ts(2591)"
+At the same time, `npm test` passed (5 pass, 0 fail) and `npm start` ran without errors.
+So the error appeared only in the editor, not in the CLI build.
 
-### Signal
+### 3.3. Hypothesis:
+The project has two TypeScript configs:
+- tsconfig.json: includes only "src/**/*.ts" and sets "types": [] (no Node types);
+- tsconfig.test.json: includes "tests/**/*.ts" and sets "types": ["node"].
+`npm test` compiles with tsconfig.test.json, so Node types are available there.
+VS Code does not know about tsconfig.test.json. For tests/logic.test.ts it falls back to
+the nearest tsconfig.json, which excludes the tests folder and has no Node types, so it
+reports TS2591. The code is correct; the editor uses the wrong project configuration.
 
-What observable signal showed the problem?
+### 3.4. Minimum change:
+Add one file, tests/tsconfig.json, that reuses the existing test configuration:
+  {
+    "extends": "../tsconfig.test.json"
+  }
+No changes to source code, tests, package.json, tsconfig.json or tsconfig.test.json.
+@types/node was already installed, so no new dependency was added.
 
-`TBD`
+### 3.5. Check:
+1. npx tsc -p tests/tsconfig.json --noEmit   (tests type-check with the new config)
+2. npm test                                  (test suite still passes)
+3. npm run typecheck                         (game code still type-checks)
+4. VS Code: "Developer: Reload Window", then open tests/logic.test.ts
 
-### Problem
+### 3.6. Result:
+1. npx tsc -p tests/tsconfig.json --noEmit -> no errors
+2. npm test -> tests 5, pass 5, fail 0 (same as before the change)
+3. npm run typecheck -> no errors
+4. The TS2591 error is no longer shown on the node:test / node:assert imports.
 
-What actually failed in the baseline?
+### 3.7. Limitation:
+- This was an editor/tooling problem, not a gameplay defect. It does not change game
+  behaviour, so the gameplay evals (E1-E3) give the same results before and after.
+- Test settings now live in two files (tsconfig.test.json and tests/tsconfig.json
+  that extends it). A future change must be made in tsconfig.test.json, not in the
+  tests folder config.
+- tsconfig.test.json still lists specific src files. A new test that imports another
+  module, such as game.ts, will need that file (and possibly the DOM lib) added there.
 
-`TBD`
 
-## 4. Hypothesis
-
-`TBD`
-
-## 5. Minimum Controlled Change
-
-Describe exactly one targeted change.
-
-`TBD`
-
-Do not combine unrelated prompt, architecture, configuration, level-layout, and test changes under one hypothesis.
-
-## 6. Re-run the Same Evals
-
-| ID  | Baseline Result | After Change | Status |
-| --- | --------------- | ------------ | ------ |
-| E1  | TBD             | TBD          | TBD    |
-| E2  | TBD             | TBD          | TBD    |
-| E3  | TBD             | TBD          | TBD    |
-| E4  | TBD             | TBD          | TBD    |
-
-## 7. Commands Actually Run
-
-```text
-TBD
-```
-
-## 8. Known Limitation
-
-`TBD`
-
-## 9. Evidence Files
-
-- baseline screenshot/video: `TBD`
-- relevant test output: `TBD`
-- diff/commit reference: `TBD`
-
-## 10. Contributions
-
-### Pair Member A
-
-`TBD`
-
-### Pair Member B
-
-`TBD`
