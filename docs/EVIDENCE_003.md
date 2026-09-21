@@ -10,33 +10,44 @@ The Week 3 Core should provide a small, deterministic 2D side-scroller in which 
 
 Record the commit hash or equivalent version identifier here:
 
-`TBD`
+7d6dc17
 
 ### Run Command
 
 Record the exact command used to start the baseline:
 
-`TBD`
+npm start
 
 ### Baseline Environment / Actual Output
 
 Record the actual command output and relevant setup details. Do not paraphrase a command that was not run.
 
-`TBD`
+PS C:\Users\Milena\Documents\GitHub\SELFBOUND_Game> npm start
+
+> selfbound-game@1.0.0 start
+> npm run build && npm run serve
+
+> selfbound-game@1.0.0 build
+> tsc -p tsconfig.json
+
+> selfbound-game@1.0.0 serve
+> node scripts/serve.mjs
+
+SELFBOUND running at http://127.0.0.1:4173
 
 ### Baseline Screenshot / Evidence
 
 Record the filename or location of the preserved baseline screenshot/video:
 
-`TBD`
+![alt text](image.png)
 
 ## 2. Initial Test Status
 
-| Check | Expected | Actual | Status |
-|---|---|---|---|
-| Application starts | Browser app loads | TBD | TBD |
-| Game loop runs | Animation updates | TBD | TBD |
-| Week 3 evals | See `EVALS.md` | TBD | TBD |
+| Check              | Expected          | Actual | Status |
+| ------------------ | ----------------- | ------ | ------ |
+| Application starts | Browser app loads | Yes    | PASS   |
+| Game loop runs     | Animation updates | Yes    | PASS   |
+| Week 3 evals       | See `EVALS.md`    | Yes    | PASS   |
 
 ## 3. Selected Problem
 
@@ -70,12 +81,12 @@ Do not combine unrelated prompt, architecture, configuration, level-layout, and 
 
 ## 6. Re-run the Same Evals
 
-| ID | Baseline Result | After Change | Status |
-|---|---|---|---|
-| E1 | TBD | TBD | TBD |
-| E2 | TBD | TBD | TBD |
-| E3 | TBD | TBD | TBD |
-| E4 | TBD | TBD | TBD |
+| ID  | Baseline Result | After Change | Status |
+| --- | --------------- | ------------ | ------ |
+| E1  | TBD             | TBD          | TBD    |
+| E2  | TBD             | TBD          | TBD    |
+| E3  | TBD             | TBD          | TBD    |
+| E4  | TBD             | TBD          | TBD    |
 
 ## 7. Commands Actually Run
 
