@@ -1,0 +1,4 @@
+interface:
+  display_name: "Student Weekly Report"
+  short_description: "Draft and evaluate a truthful weekly report"
+  default_prompt: "Use $student-weekly-report to turn my notes into a Serbian weekly-report draft, evaluate it, and ask for confirmation only before finalising it."
