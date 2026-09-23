@@ -10,6 +10,11 @@ A retro-inspired 2D side-scroller where you don't jump, you **shoot yourself**. 
 
 <video controls src="Base_game_demo.mp4" title="Base gameplay"></video>
 
+
+https://github.com/user-attachments/assets/0e67083a-ac3d-447a-a70a-49c3a5682a7b
+
+
+
 SELFBOUND takes the classic side-scrolling platformer and replaces jumping with a single core mechanic: **self-projectile teleportation**. The player is a small blue sphere that can only walk left and right. To get anywhere higher or farther, it has to shoot a piece of itself at the right enemy.
 
 The main focus of the project is on:
