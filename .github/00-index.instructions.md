@@ -12,7 +12,7 @@ Read this index first, then load only the smallest set of modules relevant to th
 6. [Build and commands](instructions/06-build-and-commands.instructions.md) — verified npm scripts, ports, endpoint, and environment variables.
 7. [Common tasks](instructions/07-common-tasks.instructions.md) — gameplay, level, endpoint, future AI, documentation, and handoff playbooks.
 8. [Code review](instructions/08-code-review.instructions.md) — risk-based review order, gates, and required handoff evidence.
-9. [External services](instructions/09-external-services.instructions.md) — local-first posture, future provider boundary, and remote/deployment limits.
+9. [External services](instructions/09-external-services.instructions.md) — local-first posture, provider boundary, and remote/deployment limits.
 
 ## Routing matrix
 
@@ -22,22 +22,22 @@ Read this index first, then load only the smallest set of modules relevant to th
 | Change `LevelData`, config, or hand-authored level geometry | Architecture | Conventions, testing, common tasks |
 | Change Canvas rendering, browser input, or HUD | Architecture | Conventions, testing |
 | Add or change a backend route | Architecture | Security, testing, review |
-| Add a future AI provider integration | Security | Architecture, testing, external services, review |
-| Change a future AI request/response contract | Architecture | Security, conventions, testing |
+| Add or change an AI provider integration | Security | Architecture, testing, external services, review |
+| Change an AI request/response contract | Architecture | Security, conventions, testing |
 | Change an npm script, TypeScript config, or dev server | Build and commands | Workflow, architecture |
 | Update Spec Kit or agent instructions | Workflow | Architecture, review |
 | Prepare a review or handoff | Workflow | Code review, testing |
 
 ## Repository baseline
 
-- Node.js 18+ and npm are documented in the root README; `package-lock.json` is the npm lockfile. `package.json` declares TypeScript `^7.0.2`.
+- Node.js 20.6+ and npm are documented in the root README; `package-lock.json` is the npm lockfile. `package.json` declares TypeScript `^7.0.2` and backend-only `@google/genai`.
 - The browser game uses strict TypeScript, HTML, CSS, and the Canvas 2D API. It has no frontend framework or game/physics engine.
 - Browser source is in `frontend/src/`; HTML/CSS are in `frontend/`. Independent Node HTTP server source is in `backend/src/`.
 - Root `scripts/` contains the development launchers, static frontend server, and level reachability check. `tests/` contains Node's built-in test suite.
 - Frontend and backend have separate TypeScript configs; test compilation has its own config.
-- The backend exposes `GET /api/health` and `POST /api/ai/coach`; the Coach uses a deterministic fake provider. Gameplay remains playable without the backend.
+- The backend exposes `GET /api/health` and `POST /api/ai/coach`; the Coach defaults to a deterministic fake provider and can use Gemini when explicitly configured. Gameplay remains playable without the backend.
 - Gameplay authority: [`docs/GAME_SPEC.md`](../docs/GAME_SPEC.md). Current architecture/setup: [`README.md`](../README.md), source, `package.json`, and [`docs/CONTEXT_MANIFEST.md`](../docs/CONTEXT_MANIFEST.md). Repository workflow: [`AGENTS.md`](../AGENTS.md).
-- No live AI provider, authentication, persistence, deployment configuration, or provider-specific environment variable is currently implemented.
+- Gemini is an optional backend provider; authentication, persistence, and deployment configuration are not implemented.
 
 ## Maintenance rules
 

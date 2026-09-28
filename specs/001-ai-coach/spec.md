@@ -84,4 +84,4 @@ Frame-by-frame or autonomous AI; current unfinished-run analysis; AI-controlled 
 
 ## Open questions
 
-None for the Core contract. The exact Gemini model and whether the chosen model needs a new SDK remain implementation choices after structured fake-provider flow is validated; select the smallest/cheapest model that reliably meets the response contract. Any change to endpoint/provider/model policy must be recorded in the implementation plan before implementation.
+None for the Core contract. The authorized Gemini implementation task resolves the provider choices in `plan.md`: official `@google/genai` 2.x SDK, Gemini Developer API Interactions, stable `gemini-3.5-flash-lite`, and stateless `store: false`. These implementation choices do not change the request/response contract or feature scope.

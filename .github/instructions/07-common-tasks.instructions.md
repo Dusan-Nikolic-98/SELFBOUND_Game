@@ -27,13 +27,13 @@
 
 ## AI Coach feature
 
-The AI Coach contract and fake-provider slice exist. For future implementation work:
+The AI Coach contract, fake provider, and optional Gemini provider exist. For additional Coach work:
 
 1. Create and approve the dedicated feature `spec.md`, `plan.md`, and `tasks.md`.
 2. Define the minimal game summary/run input and structured response contract.
 3. Keep the fake provider as the default in tests and runtime-validate request and provider response.
 4. Cover success, invalid input with zero provider calls, provider failure/timeout, malformed output, and bounded retries only if the contract includes retries.
-5. Add live Gemini access only in a separately authorized task, on the backend with a backend-only environment key and explicit provider/model choice in the plan.
+5. Keep any provider call on the backend with a backend-only environment key and explicit provider/model choice in the plan.
 6. Validate provider output, define safe errors/timeouts, and present advice without mutating the game.
 7. Capture required validation/evidence and update docs and usage records.
 

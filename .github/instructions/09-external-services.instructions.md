@@ -2,14 +2,14 @@
 
 ## Default posture
 
-Normal gameplay and development run locally; no external service is required. Do not call external services unless the task needs them. There is no current deployment setup documented in this repository.
+Normal gameplay and default fake-provider development run locally; no external service is required. Gemini calls occur only when explicitly configured in the backend. There is no current deployment setup documented in this repository.
 
 ## AI provider boundary
 
-- The current AI Coach uses a deterministic fake provider behind the backend. A future Gemini call belongs in the backend; browser code must not call the provider.
-- Read the active feature spec/plan before selecting a provider, model, contract, or operational policy. No Gemini model has been chosen in shipped code.
-- Read credentials from backend environment configuration only. Do not document credential values or require a key for current development.
-- Keep automated tests on the fake provider. No live call is part of the current feature slice.
+- The AI Coach defaults to a deterministic fake provider behind the backend and can select Gemini Developer API through backend configuration. Browser code must not call Gemini.
+- Read the active feature spec/plan before changing the provider, model, contract, or operational policy. The selected model is `gemini-3.5-flash-lite`.
+- Read credentials from backend environment configuration only. Do not document credential values or require a key for default development.
+- Keep automated tests offline with fake providers/test doubles. Live validation is an explicit opt-in command, not part of `npm test`.
 - Timeout, retry, and fallback behavior must follow the feature/provider contract; do not invent retry loops or fallback models.
 
 ## Git and remote operations

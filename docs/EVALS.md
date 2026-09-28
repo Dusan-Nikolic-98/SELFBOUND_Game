@@ -122,3 +122,25 @@ E4 uses a real observed problem from the baseline run. It was found by playing t
 | W4-C5 | Provider failure | Not applicable | Backend returned stable 503; browser rendered the generic safe unavailable message |
 
 The browser checks used headless Edge with the repository's combined development launcher. The 200 response was produced by the default fake provider. Automated checks: `npm test` (39/39), `npm run typecheck`, `npm run build`, and `node scripts/check-reachability.mjs` all passed. This addendum does not change the historical Week 3 E1-E4 results above.
+
+### W04 Gemini provider implementation addendum
+
+The offline Gemini adapter tests use an injected Interactions client; they do not make provider calls. The backend route retains the existing completed-run request and advice response contracts.
+
+| Check | Evidence | Result |
+|---|---|---|
+| G1 request construction | Configured stable model, serialized bounded runs, `store:false`, required JSON fields/category enum, conservative generation limits, and no tools/background/previous interaction | PASS |
+| G2 valid structured output | Parsed advice passes the backend runtime validator and the route returns HTTP 200 | PASS |
+| G3 malformed output | Malformed JSON maps to HTTP 503 and is not retried | PASS |
+| G4 contract-invalid output | Valid JSON with an invalid category maps to HTTP 503 and is not retried | PASS |
+| G5 timeout | The test double observes cancellation; at most two attempts are made | PASS |
+| G6 transient 503 | One retry succeeds; total attempts are two | PASS |
+| G7 rate limit | 429 retries once; exhausted failure remains generic | PASS |
+| G8 non-retryable failures | 400, 401, and 403 do not retry; recognized connection failures may retry once | PASS |
+| G9 invalid local input | Route returns 400 and asserts `providerCallCount === 0` | PASS |
+| G10 missing Gemini key | Gemini config fails with a safe missing-variable message; no key value is logged | PASS |
+| G11 fake mode | Default fake config and provider work without a Gemini key | PASS |
+
+Validation actually run: `npm run typecheck` passed; `npm run build` passed; `npm test` passed (51 tests, 0 failed); `node scripts/check-reachability.mjs` returned `RESULT: PASS - every target is capturable`; `npm run test:ai:live` built the backend and reported `NOT PERFORMED` because `AI_COACH_PROVIDER` was not set to `gemini`. No live Gemini call was made. The reachability run emitted a Node module-type warning for the generated frontend module, then completed successfully.
+
+Security checks confirmed the root `.env` path is ignored, no real root `.env` file is present in this checkout, no tracked `.env` path or `.env` history exists, `.env.example` contains placeholders only, and the built frontend source/output contains no Gemini key/config, SDK, provider URL, or provider auth-header wiring. The existing backend request validator still runs before provider access and provider advice is validated before route success. Manual Gemini quality evaluation and the existing Coach UI visual/focus play-test remain outstanding.

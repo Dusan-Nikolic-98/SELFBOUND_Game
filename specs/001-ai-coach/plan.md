@@ -5,9 +5,9 @@
 - `frontend/src/game.ts` owns deterministic state and transitions. `Game.status` is `playing | won | gameover`; `update()` sets `won` only after sequence completion and entering the exit. `loseLife()` restores gameplay while preserving the current telemetry run, and sets `gameover` when lives reach zero. `Game` owns an in-memory `CoachRunHistory` from `frontend/src/coach-telemetry.ts`.
 - `Game.resetLevel()` restores configured lives and gameplay state; an active run's telemetry is discarded, while terminal summaries remain archived. `frontend/src/main.ts` wires `R`, Reset Level, and the AI Coach UI/client, and updates the HUD each animation frame.
 - `frontend/index.html` contains the canvas HUD, reset and Coach controls, status, and advice panel; `frontend/styles.css` styles the existing UI. There is no main menu or UI framework.
-- The separate Node backend serves `GET /api/health` and `POST /api/ai/coach` from `backend/src/server.ts`. The Coach route validates bounded input, calls `FakeAiCoachProvider` from `backend/src/ai-coach-provider.ts`, then validates its output. The browser sends a request only on explicit player action; no live provider is called.
+- The separate Node backend serves `GET /api/health` and `POST /api/ai/coach` from `backend/src/server.ts`. The Coach route validates bounded input, calls the startup-selected provider, then validates its output. Fake mode remains the default and live Gemini mode is backend-only.
 - Runtime validation remains hand-written in each environment: `frontend/src/validation.ts` handles `GameConfig`/`LevelData`; AI Coach boundary validators are in `frontend/src/ai-coach-contract.ts` and `backend/src/ai-coach-contract.ts`. Tests use `node:test`/`node:assert/strict` and now cover client, telemetry, lifecycle, and backend route behavior.
-- There is no persistence layer, shared package, provider SDK, live provider configuration, or frontend browser automation. Completed-run history is session-only.
+- There is no persistence layer, shared package, or frontend browser automation. Completed-run history is session-only. The official `@google/genai` SDK is imported only by backend code.
 
 ## Proposed data flow
 
@@ -107,15 +107,25 @@ All aim, timing and position classifications are heuristics. Include underlying 
 
 - Add `POST /api/ai/coach` in the existing `backend/src/server.ts` routing style. Keep current health semantics and allowed local frontend origins; allow `POST, OPTIONS` for this route and `Content-Type` only. Reject wrong methods/routes and oversized/malformed request bodies with stable JSON envelopes.
 - Request envelope: `{ "runs": [...] }`; success envelope: `{ "advice": {...} }`. Validation failure uses HTTP 400 `{ "ok": false, "error": "invalid_request" }`. Provider unavailable/timeout/invalid provider output uses generic 503 `{ "ok": false, "error": "coach_unavailable" }`. Do not return stack/provider detail.
-- Backend provider interface accepts validated runs and returns unknown/untrusted output for subsequent validation. Implement a deterministic fake provider first, injected in tests, before a Gemini adapter. No generic agent framework or frontend/backend shared runtime module is necessary; duplicate the small boundary contract/validator only if needed to keep each target environment independent, documenting drift risk.
+- Backend provider interface accepts validated runs and returns unknown/untrusted output for subsequent validation. Keep the deterministic fake provider and inject providers in route tests. Normal startup selects one provider from validated backend configuration. No generic agent framework or frontend/backend shared runtime module is necessary; duplicate the small boundary contract/validator only if needed to keep each target environment independent, documenting drift risk.
 - Provider prompt: concise SELFBOUND coach; use supplied summaries only; distinguish measured facts from heuristic signals; do not invent counts, infer personality, or prescribe exact angles; choose the strongest recurring/high-impact pattern; provide one concrete action, optional secondary point, and one practice goal; return the required JSON structure only. Insufficient evidence should yield general/qualified advice.
-- Gemini model: no model has been selected in the repository. Choose the smallest/cheapest model that passes structured-output and grounding tests; keep model selection backend configuration, not frontend.
+- Provider: Gemini Developer API through the official `@google/genai` SDK. Use the Interactions API with `store: false`, no tools, no background work, no previous interaction, and no provider-side conversation state. Request JSON structured output using the Coach response schema, then continue to treat parsed output as `unknown` until the existing backend validator accepts it.
+- Model: explicitly use stable `gemini-3.5-flash-lite`. The official model page describes it as low-latency/cost-efficient and confirms structured-output support; this short, bounded telemetry classification task does not justify a larger model. Reject a different `GEMINI_MODEL` value instead of silently switching models.
+- Generation limits: temperature `0.2`, at most `512` output tokens, and no request for hidden reasoning.
+
+### Backend configuration and local environment
+
+- `AI_COACH_PROVIDER` accepts `fake` or `gemini` and defaults to `fake`. `GEMINI_API_KEY` is required only for Gemini mode. `GEMINI_MODEL` defaults to and is validated as `gemini-3.5-flash-lite`.
+- Keep configuration parsing separate from route code. Missing/invalid configuration fails startup with a developer-facing message that names the missing/invalid variable but never prints its value. The API key is passed directly to the backend SDK client and is never logged.
+- Use the repository-root `.env` only. `.gitignore` already excludes `.env` and `.env.*` while allowing `.env.example`; the example file contains placeholders only.
+- Normal fake development requires no environment file. To run the backend with root `.env`, build it and use Node's native environment-file option: `npm run build:backend`, then `node --env-file=.env backend/dist/server.js`. The live validation runner may use the same Node loading mechanism, but it must not print the loaded values. The process environment can also provide the same backend variables.
+- `@google/genai` 2.x requires Node.js 20+. The repository runtime floor is set to Node.js 20.6 because the documented native `--env-file` workflow uses that Node option. Do not move the application to Node 22 solely for the SDK.
 
 ## Timeout, retry, safe failures, and operations
 
-- Set a 15-second end-to-end provider deadline, including at most one 250 ms delayed retry. Maximum two provider attempts total. Retry only an explicitly transient network/429/5xx failure and only if the remaining deadline permits; no retry for request validation, programming errors, provider malformed output, or response schema failure. Enforce timeout with `AbortController`/supported provider cancellation so timed-out calls do not remain active.
+- Set a 7,000 ms timeout per attempt, a maximum of two total provider attempts, and a 500 ms delay before the single possible retry. This gives a maximum provider-call budget of approximately 14.5 seconds. Retry only connection/network failures, per-attempt timeout, and HTTP 408/429/500/502/503/504. Do not retry local/request/schema/configuration errors, HTTP 400/401/403, programming errors, or parsed output rejected by the backend response validator. Disable the SDK's automatic retry behavior so custom retry handling is the only retry layer; cancel timed-out requests using the SDK's supported timeout/abort handling.
 - The frontend has one in-flight request at a time. On HTTP/network failure, timeout, or invalid response envelope, show “AI Coach is currently unavailable. Try again later.” Keep gameplay responsive and controls usable.
-- Log only provider name, configured model identifier, timestamp, latency, outcome, attempt count, and token usage if provided. Do not log API keys, full requests/runs, prompts, full responses, or raw errors. Use a fixed safe failure code for client response; internal diagnostics must be scrubbed and minimal.
+- Log one compact record per live Gemini Coach operation: operation name, provider, configured model identifier, timestamp, total latency, success/failure, attempt count, a fixed safe failure category, and token usage only when the SDK exposes it. Do not log API keys, full requests/runs, prompts, full responses, headers, or raw errors. Use a fixed safe failure code for client response; internal diagnostics must be scrubbed and minimal.
 - Read Gemini credentials from backend environment configuration only. Add placeholder-only `.env.example` only if implementation establishes the actual variable name; do not put provider configuration in frontend build variables.
 
 ## UI plan
@@ -124,7 +134,7 @@ Add an `AI Coach` button and local helper/status/advice elements beside the exis
 
 ## Test strategy and W04 evals
 
-Add focused telemetry/contract tests using Node `node:test` and deterministic clock/input values. Extend existing gameplay tests only for run-event integration; retain synthetic levels rather than coupling to Core Level 1 coordinates. Add backend route/provider tests (the repository currently has no route tests), using injected fake providers and no live network. Verify malformed provider output is rejected. Automated live Gemini calls are not part of `npm test`.
+Add focused telemetry/contract tests using Node `node:test` and deterministic clock/input values. Extend existing gameplay tests only for run-event integration; retain synthetic levels rather than coupling to Core Level 1 coordinates. Keep the existing fake-provider route tests. Add Gemini adapter/config/reliability tests through an injected Interactions client/test doubles; do not call live Gemini from `npm test`. Verify malformed JSON and valid-but-contract-invalid output fail safely, and that output rejected by the backend validator does not cause another provider attempt. Automated live Gemini calls are not part of `npm test`.
 
 | Eval | Expected result | Planned coverage |
 |---|---|---|
@@ -140,9 +150,11 @@ Add focused telemetry/contract tests using Node `node:test` and deterministic cl
 | A10 life loss before Game Over | Same run continues; life loss counted | Lifecycle/gameplay test |
 | A11 Coach during active run | Only completed summaries serialized | Frontend history serialization test |
 
+Gemini implementation checks: request construction uses the configured stable model, only validated bounded completed-run data, `store:false`, the approved schema, and no tools/background/previous interaction; valid JSON passes the existing validator and reaches HTTP 200; malformed or contract-invalid output maps to safe 503; per-attempt timeout and one transient retry stay within two total calls; 429 may retry once; 401/403 and local invalid input do not retry/call the provider; missing Gemini configuration fails without exposing key material; fake mode starts without a key.
+
 Also cover angle boundary/zero vector; blocked-segment intersection and tangency; aim-settle cutoff and actual bounce requirement; movement threshold and three-failure chain/reset; range expiry reason and bounce-granted budget; terminal finalization exactly once; summary/event/body limits and finite number validation. Manual browser check should exercise zero/one/three history, loading while moving/playing, success, failure, terminal reset, and small-screen layout.
 
-Future validation commands after implementation: `npm run typecheck`, `npm test`, `npm run build`, then `node scripts/check-reachability.mjs` after frontend build. This specification task does not run product checks because it changes documentation only.
+Implementation validation commands: `npm run typecheck`, `npm test`, `npm run build`, then `node scripts/check-reachability.mjs` after frontend build. Any live validation is a separate explicit opt-in path and is limited to at most three successful calls; it is not required for fake/test-double completion.
 
 ## Compatibility, risks, and limitations
 
@@ -150,4 +162,4 @@ Keep existing gameplay rules, reset semantics, projectile collisions, and termin
 
 ## Implementation sequencing
 
-Implement in multiple scoped prompts: (1) contracts, validators, deterministic telemetry and tests; (2) game event integration, lifecycle/history, and lifecycle tests; (3) UI with fake provider and backend route including request/response/error tests; (4) Gemini adapter, environment configuration, timeout/retry/logging and limited live validation; (5) end-to-end manual evaluation and evidence. Do not combine all phases in one large change. Do not begin any of these implementation phases as part of this specification task.
+The current implementation task authorizes phase (4): Gemini adapter, environment configuration, timeout/retry/logging, offline tests, opt-in live validation, and documentation. Earlier phases remain represented by the existing code and tests. Preserve gameplay, frontend telemetry/history, and HTTP contracts. Do not expand into additional AI behavior. Complete fake/test-double validation before considering the optional live check.

@@ -3,6 +3,8 @@ import {
   AiCoachProvider,
   FakeAiCoachProvider,
 } from "./ai-coach-provider.js";
+import { parseAiCoachRuntimeConfig, BackendConfigurationError } from "./ai-coach-config.js";
+import { createAiCoachProvider } from "./ai-coach-runtime.js";
 import {
   MAX_COACH_REQUEST_BYTES,
   validateAiCoachAdvice,
@@ -111,7 +113,8 @@ export function createServer(provider: AiCoachProvider = new FakeAiCoachProvider
 export function startServer(): Server {
   const host = process.env.HOST || "127.0.0.1";
   const port = Number(process.env.PORT || 3001);
-  const server = createServer();
+  const provider = createAiCoachProvider(parseAiCoachRuntimeConfig(process.env));
+  const server = createServer(provider);
   server.on("error", (error: NodeJS.ErrnoException) => {
     console.error(`SELFBOUND backend failed to start: ${error.message}`);
     process.exitCode = 1;
@@ -122,4 +125,11 @@ export function startServer(): Server {
   return server;
 }
 
-if (require.main === module) startServer();
+if (require.main === module) {
+  try {
+    startServer();
+  } catch (error) {
+    console.error(error instanceof BackendConfigurationError ? error.message : "SELFBOUND backend failed to start.");
+    process.exitCode = 1;
+  }
+}

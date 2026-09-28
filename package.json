@@ -9,6 +9,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "npm run build:frontend && npm run serve:frontend",
     "dev:backend": "npm run build:backend && node backend/dist/server.js",
+    "test:ai:live": "npm run build:backend && node scripts/test-ai-live.mjs",
     "build": "npm run build:frontend && npm run build:backend",
     "build:frontend": "tsc -p tsconfig.frontend.json",
     "build:backend": "tsc -p tsconfig.backend.json",
@@ -17,11 +18,17 @@
     "typecheck": "npm run typecheck:frontend && npm run typecheck:backend",
     "typecheck:frontend": "tsc -p tsconfig.frontend.json --noEmit",
     "typecheck:backend": "tsc -p tsconfig.backend.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js dist-tests/tests/gameplay.test.js dist-tests/tests/ai-coach.test.js dist-tests/tests/ai-coach-backend.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js dist-tests/tests/gameplay.test.js dist-tests/tests/ai-coach.test.js dist-tests/tests/ai-coach-backend.test.js dist-tests/tests/ai-coach-gemini.test.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@google/genai": "2.24.0"
+  },
+  "engines": {
+    "node": ">=20.6.0"
   }
 }

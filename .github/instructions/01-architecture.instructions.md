@@ -29,15 +29,15 @@ Browser ──loads static HTML/CSS/compiled JS──> frontend server (:4173)
 Backend process (:3001) ──GET /api/health, POST /api/ai/coach──> JSON responses
 ```
 
-The game uses `POST /api/ai/coach` only after the player requests advice and at least one completed run exists. `backend/src/server.ts` uses Node's built-in `node:http`; it serves `GET /api/health`, validates bounded Coach requests, invokes a deterministic fake provider, validates its response, and handles OPTIONS preflight and JSON errors. No live provider is called.
+The game uses `POST /api/ai/coach` only after the player requests advice and at least one completed run exists. `backend/src/server.ts` uses Node's built-in `node:http`; it serves `GET /api/health`, validates bounded Coach requests, invokes the configured provider, validates its response, and handles OPTIONS preflight and JSON errors. Fake mode is the default; Gemini mode is opt-in through backend configuration.
 
-Future live-provider flow, not implemented:
+Configured live-provider flow:
 
 ```text
 Browser ──> SELFBOUND backend ──> AI provider
 ```
 
-Any future provider call and provider secret must remain backend-only and be defined by an active feature spec. Do not infer an endpoint, model, request contract, or SDK from this diagram.
+Provider calls and secrets remain backend-only and are defined by the active feature spec and implementation plan. Do not infer changes to the endpoint, model, request contract, or SDK from this diagram.
 
 ## Ownership
 
@@ -47,7 +47,7 @@ Any future provider call and provider secret must remain backend-only and be def
 - **Level data:** hand-authored `frontend/src/level.ts`; rendering and collision use the same platform data.
 - **Game contracts and runtime validation:** `frontend/src/types.ts` defines TypeScript shapes; `frontend/src/validation.ts` validates runtime `GameConfig` and `LevelData` values. Keep both roles; types do not replace runtime checks.
 - **Backend transport/server configuration:** `backend/src/server.ts` owns its Node HTTP listener, health and Coach routes, allowed local origins, and `HOST`/`PORT` reads.
-- **Fake Coach provider and validation:** `backend/src/ai-coach-provider.ts` and `backend/src/ai-coach-contract.ts`; no live provider exists.
+- **Coach providers and validation:** `backend/src/ai-coach-provider.ts`, `backend/src/gemini-ai-coach-provider.ts`, `backend/src/ai-coach-config.ts`, and `backend/src/ai-coach-contract.ts`. The fake remains the default.
 - **Build and local serving:** root npm scripts, `scripts/dev*.mjs`, and `scripts/serve.mjs`.
 
 ## Dependency direction
@@ -55,7 +55,7 @@ Any future provider call and provider secret must remain backend-only and be def
 - Frontend game modules may import other frontend game modules. They must not import backend server modules or Node-only APIs.
 - Backend modules must not import browser, Canvas, DOM, or gameplay implementation.
 - There is no shared contract package today. If a cross-layer contract becomes necessary, keep it environment-neutral and create it only as part of a specified feature.
-- A future provider SDK/client belongs only in backend code. Never expose provider credentials or make a browser-to-provider call.
+- The provider SDK/client belongs only in backend code. Never expose provider credentials or make a browser-to-provider call.
 - Keep game rules in game modules, not in Canvas drawing or HUD presentation code.
 
 ## Critical game flow
