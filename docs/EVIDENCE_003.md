@@ -4,24 +4,23 @@
 
 ### Initial Claim
 
-The Week 3 Core should provide a small, deterministic 2D side-scroller in which the player's movement, projectile, enemy capture, green threat, reset, camera, and win conditions are all implemented within the defined scope.
+The Week 3 Core should provide a small, deterministic 2D side-scroller in which the player's movement, projectile, enemy capture, green threat, reset, camera, and win conditions are all implemented within the defined scope, and in which the required capture sequence can be completed and the exit reached.
 
 ### Baseline Commit / Version
 
-Record the commit hash or equivalent version identifier here:
-
-7d6dc17
+Git tag `baseline-v1` -> commit `7d6dc17` ("initial game"). The baseline is preserved and is not overwritten by the controlled change.
 
 ### Run Command
 
-Record the exact command used to start the baseline:
-
+```text
 npm start
+```
 
 ### Baseline Environment / Actual Output
 
-Record the actual command output and relevant setup details. Do not paraphrase a command that was not run.
+Windows, PowerShell, Firefox on the desktop, game served at `http://127.0.0.1:4173`.
 
+```text
 PS C:\Users\Milena\Documents\GitHub\SELFBOUND_Game> npm start
 
 > selfbound-game@1.0.0 start
@@ -34,73 +33,172 @@ PS C:\Users\Milena\Documents\GitHub\SELFBOUND_Game> npm start
 > node scripts/serve.mjs
 
 SELFBOUND running at http://127.0.0.1:4173
+```
 
 ### Baseline Screenshot / Evidence
 
-Record the filename or location of the preserved baseline screenshot/video:
+![Baseline start state](image.png)
 
-![alt text](image.png)
+The initial state: blue player at spawn, HUD shows `Lives: 3`, `Captures: 0 / 4`, `Target: enemy_1`, target marker on `enemy_1`.
+
+Baseline video: `docs/evidence/fail_level.mp4` shows the baseline run in which the level cannot be completed.
 
 ## 2. Initial Test Status
 
-| Check              | Expected          | Actual | Status |
-| ------------------ | ----------------- | ------ | ------ |
-| Application starts | Browser app loads | Yes    | PASS   |
-| Game loop runs     | Animation updates | Yes    | PASS   |
-| Week 3 evals       | See `EVALS.md`    | Yes    | PASS   |
+| Check                 | Expected              | Actual                                                               | Status   |
+| --------------------- | --------------------- | -------------------------------------------------------------------- | -------- |
+| Application starts    | Browser app loads     | Loads at `127.0.0.1:4173`, canvas and HUD render                     | PASS     |
+| Game loop runs        | Animation updates     | Player moves with A/D, aim line follows the mouse                    | PASS     |
+| `npm test` (baseline) | Pure-logic tests pass | 5 pass, 0 fail                                                       | PASS     |
+| Week 3 evals E1-E3    | See `EVALS.md`        | Work as expected                                                     | PASS     |
+| Week 3 eval E4        | See `EVALS.md`        | `enemy_2` and `enemy_4` cannot be hit, the level cannot be completed | **FAIL** |
+
+The failing E4 is the problem selected for the controlled change below. This table and `EVALS.md` state the same result.
 
 ## 3. Selected Problem
 
-### 3.1. Claim:
-The Week 3 test suite (tests/logic.test.ts) should compile and run cleanly both from the
-command line (npm test) and inside the editor (VS Code), with no TypeScript errors.
+### 3.1 Claim
 
-### 3.2. Signal:
-VS Code marked the imports in tests/logic.test.ts as an error:
-  import assert from "node:assert/strict";
-  import test from "node:test";
-  -> "Cannot find name 'node:test'. Do you need to install type definitions for node?
-      Try `npm i --save-dev @types/node` and then add 'node' to the types field in your
-      tsconfig. ts(2591)"
-At the same time, `npm test` passed (5 pass, 0 fail) and `npm start` ran without errors.
-So the error appeared only in the editor, not in the CLI build.
+A player can capture every enemy of `requiredSequence` in order and then reach the exit. This is required by `GAME_SPEC.md` section 4 and by the Definition of Done ("the player can complete the required sequence and reach the exit").
 
-### 3.3. Hypothesis:
-The project has two TypeScript configs:
-- tsconfig.json: includes only "src/**/*.ts" and sets "types": [] (no Node types);
-- tsconfig.test.json: includes "tests/**/*.ts" and sets "types": ["node"].
-`npm test` compiles with tsconfig.test.json, so Node types are available there.
-VS Code does not know about tsconfig.test.json. For tests/logic.test.ts it falls back to
-the nearest tsconfig.json, which excludes the tests folder and has no Node types, so it
-reports TS2591. The code is correct; the editor uses the wrong project configuration.
+### 3.2 Signal
 
-### 3.4. Minimum change:
-Add one file, tests/tsconfig.json, that reuses the existing test configuration:
-  {
-    "extends": "../tsconfig.test.json"
-  }
-No changes to source code, tests, package.json, tsconfig.json or tsconfig.test.json.
-@types/node was already installed, so no new dependency was added.
+1. Manual play in the browser: after capturing `enemy_1`, every shot aimed at `enemy_2` hits the left side of `middle-platform` and turns into a green threat. The HUD stays at `Captures: 1 / 4`. Recorded in `docs/evidence/fail_level.mp4`.
+2. Headless check `node scripts/check-reachability.mjs`, which drives the real `Game` class and sweeps player positions and shot angles for every capture stage:
 
-### 3.5. Check:
-1. npx tsc -p tests/tsconfig.json --noEmit   (tests type-check with the new config)
-2. npm test                                  (test suite still passes)
-3. npm run typecheck                         (game code still type-checks)
-4. VS Code: "Developer: Reload Window", then open tests/logic.test.ts
+```text
+PS C:\Users\Milena\Documents\GitHub\SELFBOUND_Game> node scripts/check-reachability.mjs
+PASS  stage 0: enemy_1 from platform "start-ground" -> 7734 capturing shots { playerX: 18, angle: 1.5 }
+FAIL  stage 1: enemy_2 from platform "start-ground" -> 0 capturing shots
+PASS  stage 2: enemy_3 from platform "middle-platform" -> 17 capturing shots { playerX: 1818, angle: 18 }
+FAIL  stage 3: enemy_4 from platform "lower-route" -> 0 capturing shots
+RESULT: FAIL - requiredSequence cannot be completed
+```
 
-### 3.6. Result:
-1. npx tsc -p tests/tsconfig.json --noEmit -> no errors
-2. npm test -> tests 5, pass 5, fail 0 (same as before the change)
-3. npm run typecheck -> no errors
-4. The TS2591 error is no longer shown on the node:test / node:assert imports.
+### 3.3 Problem
 
-### 3.7. Limitation:
-- This was an editor/tooling problem, not a gameplay defect. It does not change game
-  behaviour, so the gameplay evals (E1-E3) give the same results before and after.
-- Test settings now live in two files (tsconfig.test.json and tests/tsconfig.json
-  that extends it). A future change must be made in tsconfig.test.json, not in the
-  tests folder config.
-- tsconfig.test.json still lists specific src files. A new test that imports another
-  module, such as game.ts, will need that file (and possibly the DOM lib) added there.
+`enemy_2` and `enemy_4` stand on top of platforms that are higher than the platform the player stands on. The player cannot jump, so the only way up is a capture shot, but the edge of the target's own platform blocks every straight line of fire that is inside the 450-unit projectile range. The sequence stops at `1 / 4` and the win state is unreachable.
 
+## 4. Hypothesis
 
+The defect is in the Core Level 1 geometry, not in the collision, projectile or capture code. If `enemy_2`, `enemy_4` and the surrounding platforms are placed so that a line of fire from the player's platform clears the platform edge within the projectile range, every stage becomes capturable without changing any gameplay code.
+
+## 5. Minimum Controlled Change
+
+One change, level data only: `src/level.ts`. No change to `game.ts`, `collision.ts`, `logic.ts`, `camera.ts`, `validation.ts`, the tests or `GAME_SPEC.md`.
+
+Prompt used: `docs/FIX_PROMPT_E4.md`.
+
+Change applied to Core Level 1:
+
+| Element             | Baseline                        | After change                    | Why                                                                                            |
+| ------------------- | ------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `enemy_2`           | `x: 1000`                       | `x: 860`                        | moved next to the left edge of `middle-platform` so a shot from `start-ground` clears the edge |
+| `middle-platform`   | `height: 40`                    | `height: 70`                    | thicker platform, so the shot at `enemy_2` must clear the edge instead of grazing it           |
+| `lower-route`       | `x: 1700`                       | `x: 1940`                       | opens the line of fire from `middle-platform` down to `enemy_3`                                |
+| `lower-route-block` | not present                     | `x: 1910, y: 950, 70 x 70`      | forces a deliberate shot toward `enemy_3` instead of a free straight line                      |
+| `enemy_3`           | `radius: 18`                    | `radius: 23`                    | slightly larger target, since its shot is the narrowest one                                    |
+| `enemy_4`           | `x: 2700`, patrol `2470 - 3130` | `x: 2303`, patrol `2303 - 2421` | patrols near the left edge of `upper-route`, inside projectile range from `lower-route`        |
+| `bounce-cap`        | `x: 2300, y: 610`               | `x: 2250, y: 720`               | lowered and moved left so the bounce route toward `enemy_4` is usable                          |
+| `bounce-wall`       | `x: 2550, y: 610, width: 40`    | `x: 2200, y: 610, width: 35`    | matches the new bounce-cap position                                                            |
+
+`upper-route`, `start-ground`, `spawn`, `requiredSequence` and `exit` are unchanged.
+
+Commit: `[upiši hash iz: git log --oneline -1]`
+
+## 6. Re-run the Same Evals
+
+| ID                  | Baseline Result                                                             | After Change                                                                                                                                                                                              | Status |
+| ------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| E1                  | Player spawns, HUD shows 3 lives, movement works                            | Unchanged: player spawns, `Lives: 3`, `Captures: 0 / 4`, movement works                                                                                                                                   | PASS   |
+| E2                  | One life lost, state reset, remaining lives preserved                       | Unchanged: one life lost per fall, state reset, remaining lives preserved                                                                                                                                 | PASS   |
+| E3                  | Projectile captures the target, player teleports, progress +1               | Unchanged: capture teleports the player and progress increases by one                                                                                                                                     | PASS   |
+| E4                  | `enemy_2` and `enemy_4` unreachable, `RESULT: FAIL`, level stuck at `1 / 4` | `RESULT: PASS - every target is capturable` (1071, 12 and 7419 capturing shots for stages 1-3); manual run reaches `Captures: 4 / 4` and `Level Complete`, recorded in `docs/evidence/Base_game_demo.mp4` | PASS   |
+| E5 (camera bounds)  | Camera stayed clamped at every edge                                         | Unchanged: camera stays clamped at every edge                                                                                                                                                             | PASS   |
+| E6 (invalid config) | `validateGameConfig` rejects the input with 3 errors, safe fallback used    | Unchanged: rejected with 3 errors, safe fallback used (`npm test`)                                                                                                                                        | PASS   |
+
+The full manual browser runs are recorded in `docs/BROWSER_SMOKE_BASELINE.md` and `docs/BROWSER_SMOKE_AFTER.md`.
+
+## 7. Commands Actually Run
+
+Before the controlled change (baseline behaviour, gameplay code untouched):
+
+```text
+npm install
+npm run typecheck          -> no errors
+npm test                   -> tests 15, pass 15, fail 0
+npm run build              -> no errors
+node scripts/check-reachability.mjs
+PASS  stage 0: enemy_1 from platform "start-ground" -> 7734 capturing shots { playerX: 18, angle: 1.5 }
+FAIL  stage 1: enemy_2 from platform "start-ground" -> 0 capturing shots
+PASS  stage 2: enemy_3 from platform "middle-platform" -> 17 capturing shots { playerX: 1818, angle: 18 }
+FAIL  stage 3: enemy_4 from platform "lower-route" -> 0 capturing shots
+RESULT: FAIL - requiredSequence cannot be completed
+npm start                  -> SELFBOUND running at http://127.0.0.1:4173
+```
+
+After the controlled change in `src/level.ts`:
+
+```text
+npm run typecheck          -> no errors
+npm test                   -> tests 15, pass 15, fail 0
+npm run build              -> no errors
+node scripts/check-reachability.mjs
+PASS  stage 0: enemy_1 from platform "start-ground" -> 7734 capturing shots { playerX: 18, angle: 1.5 }
+PASS  stage 1: enemy_2 from platform "start-ground" -> 1071 capturing shots { playerX: 278, angle: 18 }
+PASS  stage 2: enemy_3 from platform "middle-platform" -> 12 capturing shots { playerX: 1828, angle: 20 }
+PASS  stage 3: enemy_4 from platform "lower-route" -> 7419 capturing shots { playerX: 1958, angle: 44 }
+RESULT: PASS - every target is capturable
+git diff --stat            -> .gitignore, docs/EVALS.md, docs/EVIDENCE_003.md, package.json,
+                              src/level.ts, tsconfig.test.json
+npm start                  -> SELFBOUND running at http://127.0.0.1:4173
+```
+
+The full test output of both runs is the 15-test list from `npm test` (10 gameplay tests plus 5 pure-logic tests), 15 pass and 0 fail in both cases.
+
+## 8. Known Limitation
+
+- `check-reachability.mjs` places the player on the platform under the previous capture point and samples a patrol enemy at 30 fixed positions. It proves that a capturing shot exists, not that it is comfortable for a human player.
+- `enemy_3` remains the narrowest shot in the level: only 12 capturing shots in the whole sweep, from the right part of `middle-platform`. It is reachable, but a player has to aim carefully.
+- The gameplay tests in `tests/gameplay.test.ts` run on a small synthetic level, so they verify the game rules, not the tuning of Core Level 1. Level tuning is covered by the reachability check and the manual browser runs.
+- Running `node scripts/check-reachability.mjs` prints a Node `MODULE_TYPELESS_PACKAGE_JSON` warning because `package.json` has no `"type": "module"`. It is only a performance notice and does not affect the result; it was left unchanged so this commit stays limited to level data.
+- Only Core Level 1 exists, so completing the sequence and the exit is verified on one level only.
+
+## 9. Evidence Files
+
+- baseline screenshot: `docs/image.png`
+- baseline video (level cannot be completed): `docs/evidence/fail_level.mp4`
+- after-change video (full run to `Level Complete`): `docs/evidence/Base_game_demo.mp4`
+- browser smoke runs: `docs/BROWSER_SMOKE_BASELINE.md`, `docs/BROWSER_SMOKE_AFTER.md`
+- reachability check: `scripts/check-reachability.mjs` (output in sections 3, 6 and 7)
+- automated tests: `tests/logic.test.ts`, `tests/gameplay.test.ts`
+- baseline reference: tag `baseline-v1`, commit `7d6dc17`
+- fix commit: `[upiši hash iz: git log --oneline -1]`
+
+## 10. Contributions
+
+### Pair Member A - Milena Paripović
+
+Created the application with the coding agent from `BUILD_PROMPT_V1.md`; captured and preserved the baseline (`npm start` output, screenshot, tag `baseline-v1`); found and documented the editor-only TS2591 problem and its fix (Appendix A); added the reachability check `scripts/check-reachability.mjs` and the gameplay test suite `tests/gameplay.test.ts`; ran the baseline and after-change browser smoke runs and recorded the videos; wrote and aligned `EVIDENCE_003.md`, `EVALS.md`, `BROWSER_SMOKE_*.md`, `AI_USAGE_LOG.md` and `README.md`.
+
+### Pair Member B - Dušan Nikolić
+
+Proposed the game idea and did the initial project setup, consulting ChatGPT and Gemini during that phase; contributed to the specification documents; implemented the controlled change in `src/level.ts` that made every target of `requiredSequence` reachable, and confirmed the reachability result.
+
+---
+
+## Appendix A - Secondary Fix (not the controlled change)
+
+This editor-configuration fix was made before the controlled change. It is recorded here for completeness. It changes no gameplay behaviour and no eval result.
+
+**Claim:** `tests/logic.test.ts` should compile cleanly both from the command line and in VS Code.
+
+**Signal:** VS Code reported `TS2591: Cannot find name 'node:test'` on the imports, while `npm test` passed with 5/5.
+
+**Hypothesis:** `npm test` compiles with `tsconfig.test.json` (which has `"types": ["node"]`), but VS Code falls back to `tsconfig.json`, which excludes `tests/` and has `"types": []`.
+
+**Minimum change:** added `tests/tsconfig.json` with `{ "extends": "../tsconfig.test.json" }`. No dependency added.
+
+**Check and result:** `npx tsc -p tests/tsconfig.json --noEmit` -> no errors; `npm test` -> 5 pass, 0 fail (unchanged); `npm run typecheck` -> no errors; the editor error is gone after reloading the window.
+
+**Limitation:** tooling only. It does not affect any gameplay eval, which is why it is not used as the controlled change for E4.

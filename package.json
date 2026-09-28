@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.json",
     "serve": "node scripts/serve.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js dist-tests/tests/gameplay.test.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
