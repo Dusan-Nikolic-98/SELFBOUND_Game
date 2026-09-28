@@ -35,9 +35,9 @@ Read this index first, then load only the smallest set of modules relevant to th
 - Browser source is in `frontend/src/`; HTML/CSS are in `frontend/`. Independent Node HTTP server source is in `backend/src/`.
 - Root `scripts/` contains the development launchers, static frontend server, and level reachability check. `tests/` contains Node's built-in test suite.
 - Frontend and backend have separate TypeScript configs; test compilation has its own config.
-- The backend currently exposes only `GET /api/health`. The frontend does not call it; gameplay remains playable without the backend.
+- The backend exposes `GET /api/health` and `POST /api/ai/coach`; the Coach uses a deterministic fake provider. Gameplay remains playable without the backend.
 - Gameplay authority: [`docs/GAME_SPEC.md`](../docs/GAME_SPEC.md). Current architecture/setup: [`README.md`](../README.md), source, `package.json`, and [`docs/CONTEXT_MANIFEST.md`](../docs/CONTEXT_MANIFEST.md). Repository workflow: [`AGENTS.md`](../AGENTS.md).
-- No AI provider, authentication, persistence, deployment configuration, or provider-specific environment variable is currently implemented.
+- No live AI provider, authentication, persistence, deployment configuration, or provider-specific environment variable is currently implemented.
 
 ## Maintenance rules
 

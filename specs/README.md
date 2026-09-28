@@ -10,7 +10,7 @@ specs/
     └── tasks.md
 ```
 
-This is a convention, not a claim that an AI Coach feature has been specified or implemented. No feature folder currently exists.
+The `001-ai-coach` folder contains the approved feature contract, plan, and implementation tasks. Its fake-provider vertical slice is implemented; Gemini integration remains future work.
 
 ## `spec.md`
 

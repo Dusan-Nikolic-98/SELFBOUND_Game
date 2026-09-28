@@ -16,8 +16,8 @@ This is the always-on entry point for AI coding agents working in SELFBOUND. Use
 ## Always-on guardrails
 
 - Preserve existing gameplay unless the task explicitly changes a rule in an approved spec.
-- Browser gameplay code owns deterministic game state and rules; the backend is currently an independent health service.
-- Never put provider credentials or server-only configuration in browser code. Future provider calls belong on the backend and require an accepted feature contract.
+- Browser gameplay code owns deterministic game state and rules; the independent backend exposes health and the fake-provider AI Coach endpoint.
+- Never put provider credentials or server-only configuration in browser code. Any live provider call belongs on the backend and requires an accepted feature contract.
 - Runtime-validate structured data at trust boundaries; TypeScript types alone do not validate runtime values.
 - Keep changes small and within scope. Do not add frameworks, infrastructure, or unrelated refactors without a concrete requirement.
 - Keep any future AI feature read-only and outside the frame-by-frame game loop unless an approved spec changes that boundary.

@@ -1,6 +1,7 @@
 import { updateCamera, Camera } from "./camera.js";
 import { circleIntersectsCircle, circleIntersectsRect, resolveCircleRectCollision } from "./collision.js";
 import { InputState } from "./input.js";
+import { CoachRunHistory, isApproximatelyAimed, AIM_CHANGE_DEGREES, segmentIntersectsRect, ShotTelemetryContext } from "./coach-telemetry.js";
 import {
   applyProjectileBounce,
   BOUNCE_BONUS,
@@ -25,6 +26,7 @@ export class Game {
   readonly input: InputState;
   readonly player: PlayerState;
   readonly camera: Camera = { x: 0, y: 0 };
+  readonly coachHistory = new CoachRunHistory();
 
   lives: number;
   status: GameStatus = "playing";
@@ -34,6 +36,8 @@ export class Game {
   greenThreat: GreenThreat | null = null;
   elapsedMs = 0;
   lastFireAtMs = Number.NEGATIVE_INFINITY;
+  private aimReference: Vector2 | null = null;
+  private lastAimChangeAtMs = 0;
 
   constructor(config: GameConfig, level: LevelData, viewport: { width: number; height: number }, input: InputState) {
     this.config = config;
@@ -43,6 +47,7 @@ export class Game {
     this.lives = config.lives;
     this.player = { position: { ...level.spawn }, velocity: { x: 0, y: 0 }, radius: PLAYER_RADIUS };
     this.resetGameplayState();
+    this.coachHistory.startRun(this.elapsedMs);
   }
 
   get currentTargetId(): string | undefined {
@@ -58,9 +63,33 @@ export class Game {
   }
 
   resetLevel(): void {
+    if (this.status === "playing") this.coachHistory.discardCurrentRun();
     this.lives = this.config.lives;
     this.status = "playing";
     this.resetGameplayState();
+    this.aimReference = null;
+    this.lastAimChangeAtMs = this.elapsedMs;
+    this.coachHistory.startRun(this.elapsedMs);
+  }
+
+  /** Track only the latest aim direction and last material pointer change. */
+  observeAimDirection(): void {
+    const worldAim = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
+    const dx = worldAim.x - this.player.position.x;
+    const dy = worldAim.y - this.player.position.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 0.001) return;
+    const direction = { x: dx / length, y: dy / length };
+    if (!this.aimReference) {
+      this.aimReference = direction;
+      this.lastAimChangeAtMs = this.elapsedMs;
+      return;
+    }
+    const dot = this.aimReference.x * direction.x + this.aimReference.y * direction.y;
+    if (dot < Math.cos((AIM_CHANGE_DEGREES * Math.PI) / 180)) {
+      this.aimReference = direction;
+      this.lastAimChangeAtMs = this.elapsedMs;
+    }
   }
 
   private resetGameplayState(): void {
@@ -76,13 +105,14 @@ export class Game {
   }
 
   private loseLife(reason: "fall" | "threat"): void {
+    this.coachHistory.recordLifeLoss(reason);
     this.lives -= 1;
     this.resetGameplayState();
     if (this.lives <= 0) {
       this.lives = 0;
       this.status = "gameover";
+      this.coachHistory.finalize("game_over", this.elapsedMs);
     }
-    void reason;
   }
 
   update(deltaSeconds: number): void {
@@ -106,6 +136,7 @@ export class Game {
       this.loseLife("fall");
     } else if (this.isSequenceComplete && circleIntersectsRect(this.player, this.level.exit)) {
       this.status = "won";
+      this.coachHistory.finalize("level_complete", this.elapsedMs);
     }
 
     const nextCamera = updateCamera(
@@ -167,11 +198,27 @@ export class Game {
 
   private tryFire(): void {
     if (!this.canFire) return;
+    this.observeAimDirection();
     const aim = { x: this.input.mouse.x + this.camera.x, y: this.input.mouse.y + this.camera.y };
     const direction = { x: aim.x - this.player.position.x, y: aim.y - this.player.position.y };
     const length = Math.hypot(direction.x, direction.y);
     if (length < 0.001) return;
-    this.blueProjectile = createBlueProjectile(this.player.position, { x: direction.x / length, y: direction.y / length });
+    const shotDirection = { x: direction.x / length, y: direction.y / length };
+    const target = this.enemies.find((enemy) => enemy.id === this.currentTargetId);
+    const targetPosition = target ? { x: target.x, y: target.y } : null;
+    const threatPosition = this.greenThreat ? this.greenThreat.position : null;
+    const context: ShotTelemetryContext = {
+      targetId: target?.id ?? null,
+      targetDistance: targetPosition ? Math.hypot(targetPosition.x - this.player.position.x, targetPosition.y - this.player.position.y) : null,
+      threatActive: threatPosition !== null,
+      aimedAtThreat: threatPosition ? isApproximatelyAimed(shotDirection, this.player.position, threatPosition) : false,
+      aimedAtTarget: targetPosition ? isApproximatelyAimed(shotDirection, this.player.position, targetPosition) : false,
+      directLineBlocked: targetPosition ? this.level.platforms.some((platform) => segmentIntersectsRect(this.player.position, targetPosition, platform)) : false,
+      aimSettleMs: Math.max(0, this.elapsedMs - this.lastAimChangeAtMs),
+      playerPosition: { ...this.player.position },
+    };
+    this.coachHistory.recordShotStart(context);
+    this.blueProjectile = createBlueProjectile(this.player.position, shotDirection);
     this.lastFireAtMs = this.elapsedMs;
   }
 
@@ -187,7 +234,7 @@ export class Game {
         projectile.position.x += (projectile.velocity.x / PROJECTILE_SPEED) * projectile.remainingRange;
         projectile.position.y += (projectile.velocity.y / PROJECTILE_SPEED) * projectile.remainingRange;
         consumeProjectileTravel(projectile, projectile.remainingRange);
-        this.failBlueShot();
+        this.failBlueShot(true);
         return;
       }
 
@@ -198,6 +245,7 @@ export class Game {
 
       if (this.greenThreat && circleIntersectsCircle(projectile, this.greenThreat)) {
         this.greenThreat = null;
+        this.coachHistory.recordShotEnd({ outcome: "threat_destroyed", bounceCount: projectile.bounces });
         this.blueProjectile = null;
         return;
       }
@@ -208,7 +256,7 @@ export class Game {
       }));
       if (hitEnemy) {
         if (hitEnemy.id === this.currentTargetId) this.captureEnemy(hitEnemy);
-        else this.failBlueShot();
+        else this.failBlueShot(false);
         return;
       }
 
@@ -218,20 +266,21 @@ export class Game {
         if (resolution) {
           projectile.position = resolution.position;
           if (!applyProjectileBounce(projectile, resolution.normal, BOUNCE_BONUS, MAX_BOUNCES)) {
-            this.failBlueShot();
+            this.failBlueShot(false);
             return;
           }
         }
       }
 
       if (projectile.remainingRange <= 0) {
-        this.failBlueShot();
+        this.failBlueShot(true);
         return;
       }
     }
   }
 
   private captureEnemy(enemy: RuntimeEnemy): void {
+    this.coachHistory.recordShotEnd({ outcome: "captured", bounceCount: this.blueProjectile?.bounces ?? 0 });
     this.player.position = { x: enemy.x, y: enemy.y };
     this.player.velocity = { x: 0, y: 0 };
     this.enemies = this.enemies.filter((candidate) => candidate.id !== enemy.id);
@@ -239,10 +288,15 @@ export class Game {
     this.blueProjectile = null;
   }
 
-  private failBlueShot(): void {
+  private failBlueShot(rangeExpired: boolean): void {
+    const bounceCount = this.blueProjectile?.bounces ?? 0;
     const position = this.blueProjectile ? { ...this.blueProjectile.position } : { ...this.player.position };
+    this.coachHistory.recordShotEnd({ outcome: "failed", bounceCount, rangeExpired });
     this.blueProjectile = null;
-    if (!this.greenThreat) this.greenThreat = { position, radius: 11 };
+    if (!this.greenThreat) {
+      this.greenThreat = { position, radius: 11 };
+      this.coachHistory.recordThreatCreated();
+    }
   }
 
   private updateGreenThreat(deltaSeconds: number): void {

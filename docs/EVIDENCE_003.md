@@ -204,3 +204,19 @@ This editor-configuration fix was made before the controlled change. It is recor
 **Check and result:** `npx tsc -p tests/tsconfig.json --noEmit` -> no errors; `npm test` -> 5 pass, 0 fail (unchanged); `npm run typecheck` -> no errors; the editor error is gone after reloading the window.
 
 **Limitation:** tooling only. It does not affect any gameplay eval, which is why it is not used as the controlled change for E4.
+
+## Week 4 AI Coach browser integration addendum
+
+**Claim:** after a completed Game Over run, the enabled AI Coach control sends validated completed-run history to the local backend and displays the returned advice.
+
+**Signal:** with the documented combined `npm run dev` workflow, a headless Edge browser reached Game Over after three lost lives and enabled AI Coach, but clicking it showed the safe unavailable message. Before the fix, the browser debugger reported `TypeError: Failed to execute 'fetch' on 'Window': Illegal invocation`; the network trace contained no Coach request. The archived request snapshot itself passed the frontend runtime validator.
+
+**Problem:** `AiCoachClient` invoked the native `fetch` function as `this.fetcher(...)`, binding `this` to the client instance. Browser `fetch` requires the global `Window` receiver, so it rejected before any network request. The backend, CORS policy, duplicated request contracts, fake provider, and response validator were not the failing boundary.
+
+**Hypothesis:** calling the transport with `globalThis` as its receiver will allow the normal browser request while retaining all existing request and response validation.
+
+**Minimum change:** `frontend/src/ai-coach-client.ts` now calls `this.fetcher.call(globalThis, ...)`. A regression test in `tests/ai-coach.test.ts` asserts the transport receiver.
+
+**Check and result:** `npm test` passed 39/39; `npm run typecheck`, `npm run build`, and `node scripts/check-reachability.mjs` passed. Under `npm run dev`, headless Edge observed zero Coach POSTs with no history; after Game Over it sent `POST http://127.0.0.1:3001/api/ai/coach` from `http://127.0.0.1:4173`, received CORS preflight 204 and Coach response 200, and rendered deterministic advice. After terminal reset, an active run fired a shot and created a green threat, while the next request still contained exactly the one archived run. A 503 response rendered the generic unavailable message. Invalid-request/provider-zero-call behavior and provider-failure mapping also passed in the backend tests.
+
+**Limitation:** the browser check was headless and verified behavior/network traffic, not visual layout or keyboard focus. No Gemini or live provider was used. The successful 200 response came from the default `FakeAiCoachProvider`.

@@ -30,9 +30,23 @@
       </section>
 
       <footer class="game-footer">
-        <button id="reset-level" type="button">Reset Level</button>
+        <div class="game-actions">
+          <button id="reset-level" type="button">Reset Level</button>
+          <button id="ai-coach" type="button" disabled>AI Coach</button>
+          <span id="coach-availability">Complete a run before requesting coaching.</span>
+        </div>
         <span>Press R to reset the level.</span>
       </footer>
+      <section id="coach-panel" class="coach-panel" aria-live="polite" aria-atomic="true" hidden>
+        <h2>AI Coach</h2>
+        <p id="coach-status" role="status"></p>
+        <div id="coach-advice" hidden>
+          <p id="coach-summary"></p>
+          <p id="coach-primary"></p>
+          <p id="coach-secondary" hidden></p>
+          <p id="coach-goal"></p>
+        </div>
+      </section>
     </main>
     <script type="module" src="./dist/main.js"></script>
   </body>

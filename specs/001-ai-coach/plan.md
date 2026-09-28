@@ -2,12 +2,12 @@
 
 ## Current architecture
 
-- `frontend/src/game.ts` owns deterministic state and game transitions. `Game.status` is `playing | won | gameover`; `update()` sets `won` only after sequence completion and entering the exit. `loseLife()` restores level gameplay state and preserves lives; it sets `gameover` when lives reach zero.
-- `Game.resetLevel()` restores configured lives and the initial gameplay state. `frontend/src/main.ts` wires both `R` and the Reset Level button to this method and updates the HUD each animation frame.
-- `frontend/index.html` contains the canvas HUD and footer Reset Level button; `frontend/styles.css` styles the footer and message panel. There is no main menu or UI framework.
-- The game and backend are separate TypeScript applications. `backend/src/server.ts` uses Node `http` and currently only serves `GET /api/health`; the browser makes no backend request today.
-- Runtime validation is implemented manually in `frontend/src/validation.ts` for `GameConfig`/`LevelData`. Tests use `node:test`/`node:assert/strict`; there are no backend route tests yet. `package.json` defines separate frontend/backend builds, typecheck, and `npm test`.
-- There is no persistence layer, shared package, provider SDK/configuration, AI endpoint, or frontend browser automation.
+- `frontend/src/game.ts` owns deterministic state and transitions. `Game.status` is `playing | won | gameover`; `update()` sets `won` only after sequence completion and entering the exit. `loseLife()` restores gameplay while preserving the current telemetry run, and sets `gameover` when lives reach zero. `Game` owns an in-memory `CoachRunHistory` from `frontend/src/coach-telemetry.ts`.
+- `Game.resetLevel()` restores configured lives and gameplay state; an active run's telemetry is discarded, while terminal summaries remain archived. `frontend/src/main.ts` wires `R`, Reset Level, and the AI Coach UI/client, and updates the HUD each animation frame.
+- `frontend/index.html` contains the canvas HUD, reset and Coach controls, status, and advice panel; `frontend/styles.css` styles the existing UI. There is no main menu or UI framework.
+- The separate Node backend serves `GET /api/health` and `POST /api/ai/coach` from `backend/src/server.ts`. The Coach route validates bounded input, calls `FakeAiCoachProvider` from `backend/src/ai-coach-provider.ts`, then validates its output. The browser sends a request only on explicit player action; no live provider is called.
+- Runtime validation remains hand-written in each environment: `frontend/src/validation.ts` handles `GameConfig`/`LevelData`; AI Coach boundary validators are in `frontend/src/ai-coach-contract.ts` and `backend/src/ai-coach-contract.ts`. Tests use `node:test`/`node:assert/strict` and now cover client, telemetry, lifecycle, and backend route behavior.
+- There is no persistence layer, shared package, provider SDK, live provider configuration, or frontend browser automation. Completed-run history is session-only.
 
 ## Proposed data flow
 
@@ -70,7 +70,8 @@ type CompletedRunSummary = {
   shotsFired: number; failedShots: number; captures: number;
   greenThreatsCreated: number; greenThreatHits: number;
   shotsWhileThreatActive: number; defensiveShots: number;
-  successfulDefensiveShots: number; offensiveShotsWhileThreatActive: number;
+  successfulDefensiveShots: number; shotsAimedAtThreat: number;
+  shotsAimedAtCurrentTargetWhileThreatActive: number; offensiveShotsWhileThreatActive: number;
   blockedDirectAttempts: number; bouncedAttempts: number;
   successfulBounceCaptures: number; rushedBouncedFailures: number;
   repeatedSamePositionFailures: number; rangeExpiredShots: number;
@@ -98,7 +99,7 @@ Put thresholds in named exported constants in the telemetry module and cover bou
 - **Rushed bounced failure:** record elapsed milliseconds since the most recent aim-direction change greater than 5° from pointer events; classify only if the completed failed shot had at least one actual bounce and settle time was <250 ms. Store only latest direction/change time, not raw pointer events. It is explicitly a proxy and cannot establish player intent.
 - **Same-position retry:** for consecutive failed shots against the same current target, shot-origin displacement ≤40 world units is same-position. A repeated pattern is recorded at three consecutive failed attempts in that zone. A successful capture or target change resets the chain. Count and coalesce; do not call the position inherently bad without blocked/failed-shot evidence.
 - **Range expiration:** true only when the game ends the projectile because its remaining travel budget reached zero without a capture. Record actual direct target distance, bounce count, and budget granted (`450 + 150 × actual bounces`, matching `PROJECTILE_RANGE` and `BOUNCE_BONUS`). Do not infer a miss is range-caused when it ended by collision with non-target/green threat or exhausted bounce allowance. The model should use this fact conservatively.
-- **Threat response:** on each fire snapshot whether threat exists. `defensiveShots` counts shots fired while active; `successfulDefensiveShots` counts those that collide with/destroy it; `offensiveShotsWhileThreatActive` counts shots fired at the current target direction while threat remains. A threat hit increments `greenThreatHits` and `livesLost` via the existing life-loss event.
+- **Threat response:** on each fire snapshot whether threat exists. `defensiveShots` counts shots fired while active; `shotsAimedAtThreat` and `shotsAimedAtCurrentTargetWhileThreatActive` preserve the two independent angular classifications (a shot can match both); `successfulDefensiveShots` counts shots that collide with/destroy the threat; `offensiveShotsWhileThreatActive` counts target-aligned shots that are not threat-aligned. A threat hit increments `greenThreatHits` and `livesLost` via the existing life-loss event.
 
 All aim, timing and position classifications are heuristics. Include underlying aggregate counts and keep language in the model prompt qualified; do not imply certainty about intent or availability of a valid bounce route.
 

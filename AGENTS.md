@@ -4,7 +4,7 @@ Persistent instructions for any coding agent working in this repository. Read th
 
 ## Project
 
-SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework) with a minimal independent TypeScript backend added as an architecture boundary. The backend currently exposes only a health endpoint. The project was built for the Retro AI Engineering Challenge, Sessions 003-004.
+SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework) with an independent TypeScript backend. The backend exposes a health endpoint and the scoped, fake-provider AI Coach endpoint; it has no live AI provider. The project was built for the Retro AI Engineering Challenge, Sessions 003-004.
 
 ## Authority order
 
@@ -30,11 +30,11 @@ node scripts/check-reachability.mjs      # after npm run build:frontend
 
 - TypeScript for logic and the minimal HTTP backend, Canvas for rendering, HTML/CSS for UI. No game or physics engine, no framework, no database, no multiplayer, no procedural generation.
 - Browser gameplay belongs to `frontend/src/`; server code belongs to `backend/src/`. Do not import modules across this boundary.
-- Backend currently provides only `GET /api/health`. No AI/provider integration is in scope until its feature contract is defined.
+- Backend provides `GET /api/health` and `POST /api/ai/coach` using a deterministic fake provider. Live AI/provider integration remains out of scope until a separate implementation task authorizes it.
 - Collision: axis-aligned rectangles for platforms, circles for player, enemies and projectiles.
 - Level geometry is hand-authored structured data in `frontend/src/level.ts`. Never derive collision from an image.
 - Runtime validation of `GameConfig` and `LevelData` must stay in place. TypeScript types alone are not enough.
-- No live AI provider call, no tool calling, no autonomous agent loop in the Week 3 Core. Week 4 adds exactly one read-only `get_game_state` tool behind an allowlist.
+- No live AI provider call, tool calling, or autonomous agent loop is implemented in this slice. AI Coach is user-triggered and read-only; any later provider/tool behavior requires its own accepted feature contract.
 - Do not add audio, save systems, upgrades, inventory, extra abilities, procedural levels or extra levels beyond Core.
 - Never commit API keys, credentials or secrets.
 
@@ -53,6 +53,7 @@ node scripts/check-reachability.mjs      # after npm run build:frontend
 
 - `tests/logic.test.ts`: pure logic (validation, camera clamp, projectile range and bounce, collision helpers).
 - `tests/gameplay.test.ts`: game loop rules on a small synthetic level (capture teleport, non-target shot, green threat, life loss and reset, patrol bounds, blocked shot, exit condition, full reset).
+- `tests/ai-coach.test.ts` and `tests/ai-coach-backend.test.ts`: bounded telemetry/lifecycle, frontend contract/client, and fake-provider route coverage.
 - Add a regression test with any bug fix. Gameplay tests should not depend on Core Level 1 coordinates; level tuning is covered by `check-reachability.mjs`.
 
 ## Repository layout
@@ -60,7 +61,7 @@ node scripts/check-reachability.mjs      # after npm run build:frontend
 ```text
 docs/        specification, prompts, context manifest, evals, evidence, AI usage log
 frontend/    index.html, styles.css and src/ browser game modules
-backend/     src/server.ts minimal health API
+backend/     src/ health and fake AI Coach APIs
 scripts/     serve.mjs (frontend server), dev.mjs (combined launcher), level check
-tests/       logic.test.ts, gameplay.test.ts
+tests/       Node suite for logic, gameplay, AI Coach telemetry and backend route
 ```

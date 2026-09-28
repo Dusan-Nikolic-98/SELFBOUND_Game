@@ -12,13 +12,13 @@
 
 For meaningful behavior, contract, or architecture changes, update/create the relevant Spec Kit artifacts before implementation. Do not silently diverge from an active feature plan.
 
-Future feature work follows:
+Feature work follows:
 
 ```text
 idea → clarify → spec → plan → tasks → implementation → validation → evidence
 ```
 
-Use `specs/<feature>/spec.md`, `plan.md`, and `tasks.md`; conventions are documented in [`specs/README.md`](../../specs/README.md). No AI Coach feature spec currently exists.
+Use `specs/<feature>/spec.md`, `plan.md`, and `tasks.md`; conventions are documented in [`specs/README.md`](../../specs/README.md). The active AI Coach feature is `specs/001-ai-coach/`.
 
 ## While editing
 

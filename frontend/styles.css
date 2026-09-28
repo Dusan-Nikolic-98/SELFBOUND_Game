@@ -96,6 +96,29 @@ canvas {
 
 .game-footer { margin-top: 14px; }
 
+.game-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#coach-availability,
+#coach-status { color: #a9b6d0; }
+
+.coach-panel {
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px solid #49638e;
+  border-radius: 8px;
+  background: #11192bcc;
+  color: #e9f1ff;
+}
+
+.coach-panel h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.coach-panel p { margin: 7px 0; line-height: 1.45; }
+button:disabled { cursor: not-allowed; opacity: 0.6; }
+
 button {
   border: 1px solid #6de5ff;
   border-radius: 6px;

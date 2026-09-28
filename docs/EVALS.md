@@ -110,3 +110,15 @@ Result of the full suite before and after the controlled change: 15 tests, 15 pa
 ## Important Baseline Rule
 
 E4 uses a real observed problem from the baseline run. It was found by playing the baseline in the browser and confirmed by `scripts/check-reachability.mjs`, which reported 0 capturing shots for `enemy_2` and `enemy_4`. No defect was invented to complete the evidence.
+
+## Week 4 AI Coach integration addendum
+
+| Eval | Check | Before fix | After fix |
+| --- | --- | --- | --- |
+| W4-C1 | `npm run dev`; lose all three lives; click AI Coach | Safe unavailable UI; browser `fetch` Illegal invocation and no network request | Game Over enabled Coach; CORS preflight 204, `POST /api/ai/coach` 200, deterministic advice rendered |
+| W4-C2 | Load with no completed runs | Not applicable | Button disabled and zero Coach POSTs observed |
+| W4-C3 | Reset after terminal; fire during the new active run; request advice | Not applicable | Active shot created a green threat; request still contained only the one archived run |
+| W4-C4 | Send malformed/zero/excess run requests | Not applicable | Backend tests rejected invalid input with exactly zero provider calls |
+| W4-C5 | Provider failure | Not applicable | Backend returned stable 503; browser rendered the generic safe unavailable message |
+
+The browser checks used headless Edge with the repository's combined development launcher. The 200 response was produced by the default fake provider. Automated checks: `npm test` (39/39), `npm run typecheck`, `npm run build`, and `node scripts/check-reachability.mjs` all passed. This addendum does not change the historical Week 3 E1-E4 results above.

@@ -9,13 +9,13 @@ SELFBOUND_Game/
 │   ├── styles.css
 │   └── src/                 # browser entry, game, input, rendering, logic, data, validation
 ├── backend/
-│   └── src/server.ts        # independent Node HTTP health service
+│   └── src/                 # independent Node HTTP health and fake AI Coach service
 ├── scripts/                 # development launchers, static server, reachability check
 ├── tests/                   # Node test files for game logic and gameplay
 ├── docs/                    # game spec, context manifest, evidence, evals, task records
 ├── .github/                 # this routed agent instruction set
 ├── .specify/memory/         # durable project constitution
-└── specs/                   # future feature specs; no active AI Coach spec yet
+└── specs/                   # active feature specs, including 001-ai-coach
 ```
 
 The source has separate frontend and backend TypeScript configurations. There is no framework, shared package, persistence layer, or deployment setup.
@@ -26,12 +26,12 @@ Current local processes:
 
 ```text
 Browser ──loads static HTML/CSS/compiled JS──> frontend server (:4173)
-Backend process (:3001) ──GET /api/health──> small JSON response
+Backend process (:3001) ──GET /api/health, POST /api/ai/coach──> JSON responses
 ```
 
-The game currently makes no request to the backend and does not depend on it. `backend/src/server.ts` uses Node's built-in `node:http` and serves `GET /api/health`; it also handles OPTIONS preflight and returns 404/405 JSON errors. It is not a gameplay or AI API.
+The game uses `POST /api/ai/coach` only after the player requests advice and at least one completed run exists. `backend/src/server.ts` uses Node's built-in `node:http`; it serves `GET /api/health`, validates bounded Coach requests, invokes a deterministic fake provider, validates its response, and handles OPTIONS preflight and JSON errors. No live provider is called.
 
-Future only, not implemented:
+Future live-provider flow, not implemented:
 
 ```text
 Browser ──> SELFBOUND backend ──> AI provider
@@ -46,8 +46,8 @@ Any future provider call and provider secret must remain backend-only and be def
 - **Game loop/state and deterministic game rules:** `frontend/src/game.ts`, with focused calculations/helpers in `logic.ts`, `collision.ts`, and `camera.ts`.
 - **Level data:** hand-authored `frontend/src/level.ts`; rendering and collision use the same platform data.
 - **Game contracts and runtime validation:** `frontend/src/types.ts` defines TypeScript shapes; `frontend/src/validation.ts` validates runtime `GameConfig` and `LevelData` values. Keep both roles; types do not replace runtime checks.
-- **Backend transport/server configuration:** `backend/src/server.ts` owns its Node HTTP listener, current health route, allowed local origins, and `HOST`/`PORT` reads.
-- **Future provider calls and provider-output validation:** backend-only if explicitly specified later. They do not currently exist.
+- **Backend transport/server configuration:** `backend/src/server.ts` owns its Node HTTP listener, health and Coach routes, allowed local origins, and `HOST`/`PORT` reads.
+- **Fake Coach provider and validation:** `backend/src/ai-coach-provider.ts` and `backend/src/ai-coach-contract.ts`; no live provider exists.
 - **Build and local serving:** root npm scripts, `scripts/dev*.mjs`, and `scripts/serve.mjs`.
 
 ## Dependency direction
@@ -73,4 +73,4 @@ See [`docs/GAME_SPEC.md`](../../docs/GAME_SPEC.md) for complete gameplay semanti
 - Structured gameplay data changes must preserve runtime validation and the `LevelData` contract.
 - Architecture changes require updating the relevant feature plan and project docs/instructions.
 - Do not move deterministic gameplay authority into UI code or provider logic.
-- Any AI work stays outside frame-by-frame render/update and cannot arbitrarily mutate gameplay state; define its read-only boundary in the feature spec first.
+- AI Coach requests are explicit, read-only, and outside frame-by-frame render/update. Live-provider work requires a separate approved implementation task and must not mutate gameplay state.
