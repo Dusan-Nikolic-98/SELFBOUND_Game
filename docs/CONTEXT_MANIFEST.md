@@ -19,6 +19,8 @@ The manifest must be updated whenever the context given to Codex changes materia
 | `frontend/` and `backend/` source | Yes | Current browser/server implementation and boundary | High | Backend currently contains only a health endpoint |
 | Existing `README.md` | Yes, if present | Setup and project commands | Medium | May be stale |
 | Existing test configuration | Yes, if present | Preserves established test workflow | Medium | May be incomplete in a new project |
+| `.github/copilot-instructions.md` and `.github/` instruction modules | Yes | Concise always-on entry point and routed, repository-specific agent guidance | High | Must be kept aligned with shipped source and commands |
+| `.specify/memory/constitution.md` and `specs/` feature artifacts | Yes, when relevant | Durable project principles and active feature contracts/plans/tasks | High for the feature they govern | No AI Coach feature spec exists yet |
 | Old chat transcripts | No | Not authoritative project specification | Excluded | Conflicting or outdated requirements |
 | Random web examples | No | Unnecessary context and potential noise | Excluded | Could introduce scope or incompatible architecture |
 | Private credentials / environment secrets | No | Not needed for Week 3 | Excluded | Security risk |
@@ -46,3 +48,5 @@ The following are intentionally not part of the first major coding context:
 ## Update Rule
 
 After every significant architecture or scope decision, update this file only if the set of authoritative context sources changes.
+
+The `.github/` instruction index routes agents to the smallest relevant guidance modules. The constitution records durable principles; active `specs/<feature>/` files define feature-specific requirements. These documents do not replace `GAME_SPEC.md` as the detailed gameplay source of truth or repository code/scripts as the authority for shipped architecture and commands.
