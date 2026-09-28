@@ -1,16 +1,7 @@
 {
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ES2020",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2020", "DOM"],
-    "types": [],
-    "strict": true,
-    "noEmitOnError": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "sourceMap": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*.ts"]
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.frontend.json" },
+    { "path": "./tsconfig.backend.json" }
+  ]
 }

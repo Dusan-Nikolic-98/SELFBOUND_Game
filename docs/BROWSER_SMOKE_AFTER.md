@@ -1,11 +1,11 @@
 # BROWSER SMOKE RUN - AFTER THE CONTROLLED CHANGE
 
-The same manual run as `BROWSER_SMOKE_BASELINE.md`, repeated after the single controlled change in `src/level.ts`.
+The same manual run as [BROWSER_SMOKE_BASELINE.md](BROWSER_SMOKE_BASELINE.md), repeated after the single controlled change. At that time the level data was in `src/level.ts`; it now lives in [`frontend/src/level.ts`](../frontend/src/level.ts).
 
 ## How to run
 
 ```text
-git checkout <branch with the level fix>
+git checkout 5109d5b
 npm install
 npm start
 ```
@@ -14,11 +14,11 @@ Open `http://127.0.0.1:4173` in a desktop browser (1280 x 720 canvas). Click the
 
 | Field                          | Value                                                                                                       |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| Version under test             | Core Level 1 after the controlled change in `src/level.ts` (commit `[upiši hash iz: git log --oneline -1]`) |
+| Version under test             | Core Level 1 after the controlled change in [`frontend/src/level.ts`](../frontend/src/level.ts) (fix commit `5109d5b`) |
 | Date                           | 2026-09-23                                                                                                  |
 | Operating system / browser     | Windows, Firefox                                                                                            |
 | Run by                         | Milena Paripović                                                                                            |
-| Screen recording / screenshots | `docs/evidence/Base_game_demo.mp4`                                                                          |
+| Screen recording / screenshots | [Base_game_demo.mp4](../Base_game_demo.mp4)                                                                  |
 
 ## Steps and results
 
@@ -45,5 +45,5 @@ Open `http://127.0.0.1:4173` in a desktop browser (1280 x 720 canvas). Click the
 ## Summary
 
 - Steps passed: 17 / 17
-- Level completed in this run: yes, recorded in `docs/evidence/Base_game_demo.mp4`
+- Level completed in this run: yes, recorded in [Base_game_demo.mp4](../Base_game_demo.mp4)
 - Problems observed: none that block the level. `enemy_3` remains the narrowest shot (12 capturing shots in the headless sweep), so it takes careful aiming; this is recorded as a known limitation in `EVIDENCE_003.md`.

@@ -1,11 +1,11 @@
 // Eval harness for E4: can every target in requiredSequence actually be captured?
 // Usage: npm run build && node scripts/check-reachability.mjs
-// It drives the real compiled Game class (dist/) headlessly: for every capture stage it places
+// It drives the real compiled Game class (frontend/dist/) headlessly: for every capture stage it places
 // the player on the platform they would be standing on, fires shots at many angles and counts captures.
 // Limitation: it only samples the platform directly under the previous capture point (or spawn);
 // it does not simulate walking off ledges onto lower platforms.
-import { Game } from "../dist/game.js";
-import { getCoreLevel } from "../dist/level.js";
+import { Game } from "../frontend/dist/game.js";
+import { getCoreLevel } from "../frontend/dist/level.js";
 
 const CONFIG = { lives: 3, startingSpeed: 220, difficulty: "normal" };
 const PLAYER_RADIUS = 18;

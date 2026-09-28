@@ -1,6 +1,6 @@
 # BROWSER SMOKE RUN - BASELINE
 
-A reproducible manual run of the game in a desktop browser, on the preserved baseline. The same steps were repeated after the controlled change in `BROWSER_SMOKE_AFTER.md`.
+A reproducible manual run of the game in a desktop browser, on the preserved baseline. The same steps were repeated after the controlled change in [BROWSER_SMOKE_AFTER.md](BROWSER_SMOKE_AFTER.md).
 
 ## How to run
 
@@ -18,7 +18,7 @@ Open `http://127.0.0.1:4173` in a desktop browser (1280 x 720 canvas). Click the
 | Date                           | 2026-09-23                                                                                                                 |
 | Operating system / browser     | Windows, Firefox                                                                                                           |
 | Run by                         | Milena Paripović                                                                                                           |
-| Screen recording / screenshots | `docs/evidence/fail_level.mp4`, `docs/image.png`                                                                           |
+| Screen recording / screenshots | [fail_level.mp4](../fail_level.mp4), [image.png](image.png)                                                                  |
 
 ## Steps and results
 

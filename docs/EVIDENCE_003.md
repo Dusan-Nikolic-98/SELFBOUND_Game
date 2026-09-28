@@ -1,5 +1,7 @@
 # EVIDENCE 003
 
+This evidence records the Week 3 level change before the later frontend/backend split. At the time of the change, the level file was `src/level.ts`; its current path is [`frontend/src/level.ts`](../frontend/src/level.ts). The baseline reference remains the immutable `baseline-v1` tag.
+
 ## 1. Baseline Summary
 
 ### Initial Claim
@@ -41,7 +43,7 @@ SELFBOUND running at http://127.0.0.1:4173
 
 The initial state: blue player at spawn, HUD shows `Lives: 3`, `Captures: 0 / 4`, `Target: enemy_1`, target marker on `enemy_1`.
 
-Baseline video: `docs/evidence/fail_level.mp4` shows the baseline run in which the level cannot be completed.
+Baseline video: [fail_level.mp4](../fail_level.mp4) shows the baseline run in which the level cannot be completed.
 
 ## 2. Initial Test Status
 
@@ -63,7 +65,7 @@ A player can capture every enemy of `requiredSequence` in order and then reach t
 
 ### 3.2 Signal
 
-1. Manual play in the browser: after capturing `enemy_1`, every shot aimed at `enemy_2` hits the left side of `middle-platform` and turns into a green threat. The HUD stays at `Captures: 1 / 4`. Recorded in `docs/evidence/fail_level.mp4`.
+1. Manual play in the browser: after capturing `enemy_1`, every shot aimed at `enemy_2` hits the left side of `middle-platform` and turns into a green threat. The HUD stays at `Captures: 1 / 4`. Recorded in [fail_level.mp4](../fail_level.mp4).
 2. Headless check `node scripts/check-reachability.mjs`, which drives the real `Game` class and sweeps player positions and shot angles for every capture stage:
 
 ```text
@@ -85,9 +87,9 @@ The defect is in the Core Level 1 geometry, not in the collision, projectile or 
 
 ## 5. Minimum Controlled Change
 
-One change, level data only: `src/level.ts`. No change to `game.ts`, `collision.ts`, `logic.ts`, `camera.ts`, `validation.ts`, the tests or `GAME_SPEC.md`.
+One change, level data only: [`frontend/src/level.ts`](../frontend/src/level.ts), which was `src/level.ts` when the change was made. No gameplay logic, collision, projectile, camera, validation, tests or `GAME_SPEC.md` changes were part of that controlled change.
 
-Prompt used: `docs/FIX_PROMPT_E4.md`.
+Prompt used: [FIX_PROMPT_E4_1.md](FIX_PROMPT_E4_1.md).
 
 Change applied to Core Level 1:
 
@@ -104,7 +106,7 @@ Change applied to Core Level 1:
 
 `upper-route`, `start-ground`, `spawn`, `requiredSequence` and `exit` are unchanged.
 
-Commit: `[upiši hash iz: git log --oneline -1]`
+Fix commit: `5109d5b` (`Fix level, improve readme file.`; includes the Core Level 1 geometry change).
 
 ## 6. Re-run the Same Evals
 
@@ -113,11 +115,11 @@ Commit: `[upiši hash iz: git log --oneline -1]`
 | E1                  | Player spawns, HUD shows 3 lives, movement works                            | Unchanged: player spawns, `Lives: 3`, `Captures: 0 / 4`, movement works                                                                                                                                   | PASS   |
 | E2                  | One life lost, state reset, remaining lives preserved                       | Unchanged: one life lost per fall, state reset, remaining lives preserved                                                                                                                                 | PASS   |
 | E3                  | Projectile captures the target, player teleports, progress +1               | Unchanged: capture teleports the player and progress increases by one                                                                                                                                     | PASS   |
-| E4                  | `enemy_2` and `enemy_4` unreachable, `RESULT: FAIL`, level stuck at `1 / 4` | `RESULT: PASS - every target is capturable` (1071, 12 and 7419 capturing shots for stages 1-3); manual run reaches `Captures: 4 / 4` and `Level Complete`, recorded in `docs/evidence/Base_game_demo.mp4` | PASS   |
+| E4                  | `enemy_2` and `enemy_4` unreachable, `RESULT: FAIL`, level stuck at `1 / 4` | `RESULT: PASS - every target is capturable` (1071, 12 and 7419 capturing shots for stages 1-3); manual run reaches `Captures: 4 / 4` and `Level Complete`, recorded in [Base_game_demo.mp4](../Base_game_demo.mp4) | PASS   |
 | E5 (camera bounds)  | Camera stayed clamped at every edge                                         | Unchanged: camera stays clamped at every edge                                                                                                                                                             | PASS   |
 | E6 (invalid config) | `validateGameConfig` rejects the input with 3 errors, safe fallback used    | Unchanged: rejected with 3 errors, safe fallback used (`npm test`)                                                                                                                                        | PASS   |
 
-The full manual browser runs are recorded in `docs/BROWSER_SMOKE_BASELINE.md` and `docs/BROWSER_SMOKE_AFTER.md`.
+The full manual browser runs are recorded in [BROWSER_SMOKE_BASELINE.md](BROWSER_SMOKE_BASELINE.md) and [BROWSER_SMOKE_AFTER.md](BROWSER_SMOKE_AFTER.md).
 
 ## 7. Commands Actually Run
 
@@ -137,7 +139,7 @@ RESULT: FAIL - requiredSequence cannot be completed
 npm start                  -> SELFBOUND running at http://127.0.0.1:4173
 ```
 
-After the controlled change in `src/level.ts`:
+After the controlled change (then `src/level.ts`, now [`frontend/src/level.ts`](../frontend/src/level.ts)):
 
 ```text
 npm run typecheck          -> no errors
@@ -166,14 +168,14 @@ The full test output of both runs is the 15-test list from `npm test` (10 gamepl
 
 ## 9. Evidence Files
 
-- baseline screenshot: `docs/image.png`
-- baseline video (level cannot be completed): `docs/evidence/fail_level.mp4`
-- after-change video (full run to `Level Complete`): `docs/evidence/Base_game_demo.mp4`
-- browser smoke runs: `docs/BROWSER_SMOKE_BASELINE.md`, `docs/BROWSER_SMOKE_AFTER.md`
-- reachability check: `scripts/check-reachability.mjs` (output in sections 3, 6 and 7)
-- automated tests: `tests/logic.test.ts`, `tests/gameplay.test.ts`
+- baseline screenshot: [image.png](image.png)
+- baseline video (level cannot be completed): [fail_level.mp4](../fail_level.mp4)
+- after-change video (full run to `Level Complete`): [Base_game_demo.mp4](../Base_game_demo.mp4)
+- browser smoke runs: [BROWSER_SMOKE_BASELINE.md](BROWSER_SMOKE_BASELINE.md), [BROWSER_SMOKE_AFTER.md](BROWSER_SMOKE_AFTER.md)
+- reachability check: [`scripts/check-reachability.mjs`](../scripts/check-reachability.mjs) (output in sections 3, 6 and 7)
+- automated tests: [`tests/logic.test.ts`](../tests/logic.test.ts), [`tests/gameplay.test.ts`](../tests/gameplay.test.ts)
 - baseline reference: tag `baseline-v1`, commit `7d6dc17`
-- fix commit: `[upiši hash iz: git log --oneline -1]`
+- fix commit: `5109d5b`
 
 ## 10. Contributions
 
@@ -183,7 +185,7 @@ Created the application with the coding agent from `BUILD_PROMPT_V1.md`; capture
 
 ### Pair Member B - Dušan Nikolić
 
-Proposed the game idea and did the initial project setup, consulting ChatGPT and Gemini during that phase; contributed to the specification documents; implemented the controlled change in `src/level.ts` that made every target of `requiredSequence` reachable, and confirmed the reachability result.
+Proposed the game idea and did the initial project setup, consulting ChatGPT and Gemini during that phase; contributed to the specification documents; implemented the controlled change in the then-current `src/level.ts` (now [`frontend/src/level.ts`](../frontend/src/level.ts)) that made every target of `requiredSequence` reachable, and confirmed the reachability result.
 
 ---
 

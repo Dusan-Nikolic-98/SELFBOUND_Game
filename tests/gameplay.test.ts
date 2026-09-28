@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Game } from "../src/game.js";
-import { createInputState } from "../src/input.js";
-import { assertValidLevelData } from "../src/validation.js";
-import { GameConfig, LevelData, Platform } from "../src/types.js";
+import { Game } from "../frontend/src/game.js";
+import { createInputState } from "../frontend/src/input.js";
+import { assertValidLevelData } from "../frontend/src/validation.js";
+import { GameConfig, LevelData, Platform } from "../frontend/src/types.js";
 
 const CONFIG: GameConfig = { lives: 3, startingSpeed: 220, difficulty: "normal" };
 const VIEWPORT = { width: 640, height: 480 };

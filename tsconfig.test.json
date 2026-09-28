@@ -13,14 +13,14 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": [
-    "src/camera.ts",
-    "src/game.ts",
-    "src/input.ts",
-    "src/level.ts",
-    "src/collision.ts",
-    "src/logic.ts",
-    "src/types.ts",
-    "src/validation.ts",
+    "frontend/src/camera.ts",
+    "frontend/src/game.ts",
+    "frontend/src/input.ts",
+    "frontend/src/level.ts",
+    "frontend/src/collision.ts",
+    "frontend/src/logic.ts",
+    "frontend/src/types.ts",
+    "frontend/src/validation.ts",
     "tests/**/*.ts"
   ]
 }

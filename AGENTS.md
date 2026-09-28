@@ -4,7 +4,7 @@ Persistent instructions for any coding agent working in this repository. Read th
 
 ## Project
 
-SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework, no backend) built for the Retro AI Engineering Challenge, Sessions 003-004.
+SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework) with a minimal independent TypeScript backend added as an architecture boundary. The backend currently exposes only a health endpoint. The project was built for the Retro AI Engineering Challenge, Sessions 003-004.
 
 ## Authority order
 
@@ -17,18 +17,22 @@ SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework, no back
 ## Commands
 
 ```text
-npm start                                # build + serve at http://127.0.0.1:4173
-npm run build                            # tsc -p tsconfig.json  -> dist/
-npm run typecheck                        # tsc --noEmit
-npm test                                 # compiles tsconfig.test.json, runs node:test
-node scripts/check-reachability.mjs      # after npm run build: is every target capturable?
+npm run dev                              # start frontend and backend together
+npm run dev:frontend                     # build and serve browser game at :4173
+npm run dev:backend                      # build and start backend at :3001
+npm run build                            # build frontend and backend
+npm run typecheck                        # type-check both applications
+npm test                                 # compile and run node:test suite
+node scripts/check-reachability.mjs      # after npm run build:frontend
 ```
 
 ## Boundaries
 
-- TypeScript for logic, Canvas for rendering, HTML/CSS for UI. No game or physics engine, no framework, no backend, no database, no multiplayer, no procedural generation.
+- TypeScript for logic and the minimal HTTP backend, Canvas for rendering, HTML/CSS for UI. No game or physics engine, no framework, no database, no multiplayer, no procedural generation.
+- Browser gameplay belongs to `frontend/src/`; server code belongs to `backend/src/`. Do not import modules across this boundary.
+- Backend currently provides only `GET /api/health`. No AI/provider integration is in scope until its feature contract is defined.
 - Collision: axis-aligned rectangles for platforms, circles for player, enemies and projectiles.
-- Level geometry is hand-authored structured data in `src/level.ts`. Never derive collision from an image.
+- Level geometry is hand-authored structured data in `frontend/src/level.ts`. Never derive collision from an image.
 - Runtime validation of `GameConfig` and `LevelData` must stay in place. TypeScript types alone are not enough.
 - No live AI provider call, no tool calling, no autonomous agent loop in the Week 3 Core. Week 4 adds exactly one read-only `get_game_state` tool behind an allowlist.
 - Do not add audio, save systems, upgrades, inventory, extra abilities, procedural levels or extra levels beyond Core.
@@ -54,9 +58,9 @@ node scripts/check-reachability.mjs      # after npm run build: is every target 
 ## Repository layout
 
 ```text
-docs/     specification, prompts, context manifest, evals, evidence, AI usage log
-scripts/  serve.mjs (local server), check-reachability.mjs (level check)
-src/      main.ts (bootstrap/HUD), game.ts (state and rendering), logic.ts, collision.ts,
-          camera.ts, level.ts, validation.ts, input.ts, types.ts
-tests/    logic.test.ts, gameplay.test.ts
+docs/        specification, prompts, context manifest, evals, evidence, AI usage log
+frontend/    index.html, styles.css and src/ browser game modules
+backend/     src/server.ts minimal health API
+scripts/     serve.mjs (frontend server), dev.mjs (combined launcher), level check
+tests/       logic.test.ts, gameplay.test.ts
 ```

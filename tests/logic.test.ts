@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { clampCamera } from "../src/camera.js";
-import { circleIntersectsCircle, circleIntersectsRect } from "../src/collision.js";
-import { applyProjectileBounce, consumeProjectileTravel, createBlueProjectile } from "../src/logic.js";
-import { validateGameConfig, validateLevelData } from "../src/validation.js";
-import { getCoreLevel } from "../src/level.js";
+import { clampCamera } from "../frontend/src/camera.js";
+import { circleIntersectsCircle, circleIntersectsRect } from "../frontend/src/collision.js";
+import { applyProjectileBounce, consumeProjectileTravel, createBlueProjectile } from "../frontend/src/logic.js";
+import { validateGameConfig, validateLevelData } from "../frontend/src/validation.js";
+import { getCoreLevel } from "../frontend/src/level.js";
 
 test("runtime validation rejects invalid GameConfig values", () => {
   const result = validateGameConfig({ lives: -1, startingSpeed: Number.NaN, difficulty: "expert" });

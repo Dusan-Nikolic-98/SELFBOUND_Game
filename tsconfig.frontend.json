@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2020", "DOM"],
+    "types": [],
+    "strict": true,
+    "noEmitOnError": true,
+    "outDir": "frontend/dist",
+    "rootDir": "frontend/src",
+    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["frontend/src/**/*.ts"]
+}

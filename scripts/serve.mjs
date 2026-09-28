@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const projectRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
+const projectRoot = resolve(fileURLToPath(new URL("../frontend", import.meta.url)));
 const host = process.env.HOST || "127.0.0.1";
 const port = Number(process.env.PORT || 4173);
 
