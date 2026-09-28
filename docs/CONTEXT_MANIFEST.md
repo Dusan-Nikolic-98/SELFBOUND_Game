@@ -20,7 +20,7 @@ The manifest must be updated whenever the context given to Codex changes materia
 | Existing `README.md` | Yes, if present | Setup and project commands | Medium | May be stale |
 | Existing test configuration | Yes, if present | Preserves established test workflow | Medium | May be incomplete in a new project |
 | `.github/copilot-instructions.md` and `.github/` instruction modules | Yes | Concise always-on entry point and routed, repository-specific agent guidance | High | Must be kept aligned with shipped source and commands |
-| `.specify/memory/constitution.md` and `specs/` feature artifacts | Yes, when relevant | Durable project principles and active feature contracts/plans/tasks | High for the feature they govern | No AI Coach feature spec exists yet |
+| `.specify/memory/constitution.md` and `specs/` feature artifacts | Yes, when relevant | Durable project principles and active feature contracts/plans/tasks, including `specs/001-ai-coach/` | High for the feature they govern | Feature artifacts describe planned behavior until implementation is complete; keep them aligned with shipped code |
 | Old chat transcripts | No | Not authoritative project specification | Excluded | Conflicting or outdated requirements |
 | Random web examples | No | Unnecessary context and potential noise | Excluded | Could introduce scope or incompatible architecture |
 | Private credentials / environment secrets | No | Not needed for Week 3 | Excluded | Security risk |
