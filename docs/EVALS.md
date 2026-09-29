@@ -220,3 +220,21 @@ This is one successful full-workload sample, not a latency percentile or proof o
 | Secret handling | PASS by source/diff review: no credential value was read or added; the runner emitted only model, latency, attempt count, validation result, category, and token counts. `.env` and credential values were not searched or printed. |
 
 The 6,420 ms viability result provided 8,580 ms of observed headroom under the selected total deadline. One successful live migration call confirms the production path works; neither sample establishes a latency distribution. Historical Interactions and seven-second diagnosis records above describe earlier states and remain preserved.
+
+### W04 Gemini reliability hardening (2026-09-29)
+
+| Check | Actual result |
+|---|---|
+| Failure classification | PASS: distinct timeout, network, rate limit, provider unavailable/server, request/auth, model-not-found, empty, invalid JSON, schema, semantic, refusal, abort, configuration, and unknown classes |
+| Retry policy | PASS: one bounded primary retry for transient network/429/5xx; 429 `Retry-After` capped by backoff and deadline; HTTP 408 timeout is not mechanically replayed |
+| Fallback | PASS offline: allowlisted fallback only follows classified model-not-found or transient availability; auth, refusal, arbitrary 404, and invalid output do not model-hop |
+| Output repair | PASS: a single same-model correction attempt can recover output; no raw output enters repair request; a second invalid result safely fails |
+| Deadline/calls | PASS: one monotonic 15-second production budget; max three provider calls; tests use injected short budgets/clocks and do not wait 15 seconds |
+| Cancellation | PASS: backoff cancellation stops later calls; HTTP client disconnect aborts the provider signal; SDK transport double observes AbortSignal |
+| Telemetry | PASS: ordered attempt kind/model/status/classification/timing and final fallback/repair/token summary; private request and raw response sentinels absent |
+| Safe failure/input bounds | PASS: stable HTTP 503 `{ "ok": false, "error": "coach_unavailable" }`; local-invalid and oversized requests remain zero-call cases |
+| Offline checks | PASS: `npm test` 66/66; `npm run typecheck`; `npm run build`; `git diff --check` (with line-ending notices only) |
+| Live provider calls | Not run in this task |
+| Fallback capability | `gemini-3.5-flash-lite` is candidate-only; full Coach live validation has not been performed |
+
+This addendum records deterministic fake-client policy tests, not live provider behavior. The opt-in real-contract diagnostic command is `npm run test:ai:live`; to test the fallback model explicitly set `GEMINI_DIAGNOSTIC_MODEL=gemini-3.5-flash-lite` for that invocation.

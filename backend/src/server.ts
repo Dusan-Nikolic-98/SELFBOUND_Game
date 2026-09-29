@@ -62,15 +62,23 @@ async function handleCoachRequest(request: IncomingMessage, response: ServerResp
     return;
   }
 
+  const controller = new AbortController();
+  const cancelOnDisconnect = () => { if (!response.writableEnded) controller.abort(); };
+  request.once("aborted", cancelOnDisconnect);
+  response.once("close", cancelOnDisconnect);
   try {
-    const providerOutput: unknown = await provider.getAdvice(parsed.value);
+    const providerOutput: unknown = await provider.getAdvice(parsed.value, controller.signal);
+    if (controller.signal.aborted || response.destroyed) return;
     if (!validateAiCoachAdvice(providerOutput)) {
       sendJson(response, 503, { ok: false, error: "coach_unavailable" });
       return;
     }
     sendJson(response, 200, { advice: providerOutput });
   } catch {
-    sendJson(response, 503, { ok: false, error: "coach_unavailable" });
+    if (!controller.signal.aborted && !response.destroyed) sendJson(response, 503, { ok: false, error: "coach_unavailable" });
+  } finally {
+    request.off("aborted", cancelOnDisconnect);
+    response.off("close", cancelOnDisconnect);
   }
 }
 

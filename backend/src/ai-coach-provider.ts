@@ -1,7 +1,7 @@
 import { AiCoachAdvice, AiCoachRequest } from "./ai-coach-contract.js";
 
 export interface AiCoachProvider {
-  getAdvice(request: AiCoachRequest): Promise<unknown>;
+  getAdvice(request: AiCoachRequest, signal?: AbortSignal): Promise<unknown>;
 }
 
 /** Stable local implementation used until a separately approved live-provider phase. */

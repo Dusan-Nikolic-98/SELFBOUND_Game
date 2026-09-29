@@ -1,5 +1,5 @@
 import { AddressInfo } from "node:net";
-import { parseAiCoachRuntimeConfig, BackendConfigurationError } from "./ai-coach-config.js";
+import { GEMINI_ALLOWED_MODELS, GEMINI_MODEL_ID, parseAiCoachRuntimeConfig, BackendConfigurationError } from "./ai-coach-config.js";
 import { validateAiCoachResponse } from "./ai-coach-contract.js";
 import { GeminiAiCoachProvider, GeminiUsageRecord } from "./gemini-ai-coach-provider.js";
 import { createServer } from "./server.js";
@@ -43,10 +43,16 @@ async function runLiveValidation(): Promise<void> {
   }
 
   const config = parseAiCoachRuntimeConfig(process.env);
+  const diagnosticModel = process.env.GEMINI_DIAGNOSTIC_MODEL?.trim() || GEMINI_MODEL_ID;
+  if (!(GEMINI_ALLOWED_MODELS as readonly string[]).includes(diagnosticModel)) {
+    throw new BackendConfigurationError("GEMINI_DIAGNOSTIC_MODEL is not an allowlisted Coach model.");
+  }
   let usageRecord: GeminiUsageRecord | undefined;
   const provider = new GeminiAiCoachProvider({
     apiKey: config.apiKey,
-    model: config.model,
+    model: diagnosticModel,
+    modelChain: [diagnosticModel],
+    allowCandidateAsInitialModelForDiagnostic: true,
     logger: (record) => { usageRecord = record; },
   });
   const server = createServer(provider);
@@ -66,7 +72,7 @@ async function runLiveValidation(): Promise<void> {
       console.error(JSON.stringify({
         liveValidation: "FAIL",
         provider: "gemini",
-        model: config.model,
+        model: diagnosticModel,
         latencyMs: usageRecord?.latencyMs,
         attempts: usageRecord?.attempts,
         runtimeValidation: false,
@@ -79,7 +85,7 @@ async function runLiveValidation(): Promise<void> {
     console.info(JSON.stringify({
       liveValidation: "PASS",
       provider: "gemini",
-      model: config.model,
+      model: diagnosticModel,
       latencyMs: usageRecord?.latencyMs,
       attempts: usageRecord?.attempts,
       runtimeValidation: true,

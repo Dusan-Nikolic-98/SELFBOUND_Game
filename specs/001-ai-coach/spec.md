@@ -74,6 +74,8 @@ Response: `{ advice: AiCoachAdvice }`, where `AiCoachAdvice` has `summary`, `pri
 
 Local no-history and in-progress states are handled before HTTP. Backend validation errors return a stable 400 envelope without provider access. Provider timeout, unavailable provider, transient exhaustion, and malformed output map to generic stable server errors; raw details remain internal operational metadata only. The frontend renders generic wording and can issue a later request.
 
+Gemini reliability uses one 15-second monotonic deadline across at most three generation calls. It permits one bounded retry for transient transport/provider availability failures, an optional allowlisted backend fallback only for model/availability failures, and at most one same-model repair for invalid provider output. Repair never includes the invalid output and never triggers model hopping. Output is classified as empty, invalid JSON, schema-invalid, semantically invalid, or safety refusal before it can be returned. Each attempt and final outcome may be logged using sanitized model/status/timing/classification metadata; requests, prompts, output, identifiers, credentials, and stack traces remain excluded. `gemini-3.5-flash-lite` is only a candidate until it passes the full live Coach contract.
+
 ## Security and privacy
 
 Browser → SELFBOUND backend → Gemini. The browser never calls Gemini directly. Credentials are read only by backend code from environment configuration, never committed, returned, or logged. Request bodies contain gameplay-only bounded summaries. Do not log complete request/response bodies or prompts.

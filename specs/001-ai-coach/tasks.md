@@ -49,7 +49,7 @@ The AI Coach markup and request flow are implemented. T013's browser/network int
 ## GenerateContent production migration
 
 - [x] Replace production Interactions with SDK `models.generateContent`, `gemini-3.1-flash-lite`, the established system instruction, bounded run serialization, JSON response schema, and 512-token cap. Keep fake mode and public contracts unchanged.
-- [x] Replace the old 7,000 ms per-attempt limit with a shared 15,000 ms monotonic operation deadline. Keep a maximum of two provider attempts and the 500 ms delay only when enough deadline remains; SDK retry options permit one HTTP request per SDK call.
+- [x] Replace the old 7,000 ms per-attempt limit with a shared 15,000 ms monotonic operation deadline. At the original migration stage the maximum was two provider attempts with a 500 ms delay; Phase 7 below supersedes that with a three-call cap and centralized retry/fallback/repair. SDK retry options permit one HTTP request per SDK call.
 - [x] Cover GenerateContent wire fields, runtime validation, pre-provider request rejection, malformed output, retry classes/count, shared deadline, and no retry after budget exhaustion with offline tests.
 - [x] Run required offline checks, then perform one limited live production-path call and record safe metadata in eval/evidence/usage docs. Result: PASS at 2,593 ms, one attempt, runtime validation passed, `threat_management`, 531 input / 197 output / 728 total tokens. An earlier runner invocation stopped at local configuration validation and made no provider call.
 
@@ -70,3 +70,13 @@ The AI Coach markup and request flow are implemented. T013's browser/network int
 | A11 active run excluded from Coach request | T009, T013 |
 
 Keep implementation split across phases/prompts. Each task depends on the feature spec and technical plan; any material change to the lifecycle, request limits, endpoint, provider, or heuristic thresholds must update those artifacts before implementation proceeds.
+
+## Phase 7 — Gemini reliability hardening (2026-09-29)
+
+- [x] Add normalized provider failure classes and distinguish empty output, invalid JSON, schema rejection, semantic rejection, refusal, cancellation, and transport/API errors.
+- [x] Centralize deadline-aware retry/backoff/fallback/repair policy: 15-second shared deadline, at most three generation calls, one transient retry per primary model, optional allowlisted fallback, and at most one same-model output repair.
+- [x] Align Gemini JSON schema field names, enums, required/optional fields, and per-field bounds with the authoritative backend advice validator; enforce an 8 KiB parsed-text input cap without weakening validation.
+- [x] Add backend-only `GEMINI_MODEL_CHAIN`; keep `gemini-3.1-flash-lite` primary and mark `gemini-3.5-flash-lite` as candidate-only until the full live Coach contract passes.
+- [x] Record sanitized ordered per-attempt telemetry and final summary; propagate HTTP request cancellation into provider calls/backoff.
+- [x] Add deterministic scripted-provider tests for transient retry, `Retry-After`, fallback, arbitrary/model-specific 404, output repair/classification, refusal, no-retry cases, deadlines, cancellation, and telemetry sanitization. No automated live Gemini call.
+- [x] Record final local build/typecheck/test output in `docs/EVALS.md` and `docs/EVIDENCE_003.md`: 66 tests passed; typecheck, build, and diff check passed. No live call was made.

@@ -7,5 +7,5 @@ export function createAiCoachProvider(config: AiCoachRuntimeConfig): AiCoachProv
   if (!config.apiKey) {
     throw new BackendConfigurationError("GEMINI_API_KEY is required when AI_COACH_PROVIDER=gemini.");
   }
-  return new GeminiAiCoachProvider({ apiKey: config.apiKey, model: config.model });
+  return new GeminiAiCoachProvider({ apiKey: config.apiKey, model: config.model, modelChain: config.modelChain });
 }
