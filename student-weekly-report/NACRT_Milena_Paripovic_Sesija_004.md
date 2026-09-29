@@ -2,16 +2,16 @@
 
 ## 1. Osnovne informacije
 
-| Polje | Odgovor |
-| --- | --- |
-| Ime i prezime | Milena Paripović |
-| Adresa e-pošte | [paripovicmilena@gmail.com](mailto:paripovicmilena@gmail.com) |
-| Discord korisničko ime | Milena Paripovic |
-| Nedelja | Sesija 004 (W04 — Reliable AI Integration) |
-| Par / tim | Dušan Nikolić / tim9 |
-| Moj konkretan doprinos / uloga | Dokumentacija i W04 artefakti, security checklist, pokretanje testova, pregled diff-a, izveštaji; **NEDOSTAJE:** potvrda da je kompletan browser play-test izvršen lično. |
-| Datum predaje | **NEDOSTAJE: datum predaje** |
-| Reference na rad i dokaze | `docs/w4/README.md`, `docs/w4/AI_FEATURE_PROMPT.md`, `docs/w4/AI_PROVIDER_CONTRACT.md`, `docs/w4/AI_EVALS.md`, `docs/EVIDENCE_W04.md`, `docs/AI_USAGE_LOG.md`, `specs/001-ai-coach/`; javni repozitorijum: <https://github.com/Dusan-Nikolic-98/SELFBOUND_Game> |
+| Polje                          | Odgovor                                                                                                                                                                                                                                                         |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ime i prezime                  | Milena Paripović                                                                                                                                                                                                                                                |
+| Adresa e-pošte                 | [paripovicmilena@gmail.com](mailto:paripovicmilena@gmail.com)                                                                                                                                                                                                   |
+| Discord korisničko ime         | Milena Paripovic                                                                                                                                                                                                                                                |
+| Nedelja                        | Sesija 004 (W04 — Reliable AI Integration)                                                                                                                                                                                                                      |
+| Par / tim                      | Dušan Nikolić / tim9                                                                                                                                                                                                                                            |
+| Moj konkretan doprinos / uloga | Dokumentacija i W04 artefakti, security checklist, pokretanje testova, pregled diff-a, izveštaji; **NEDOSTAJE:** potvrda da je kompletan browser play-test izvršen lično.                                                                                       |
+| Datum predaje                  | **NEDOSTAJE: datum predaje**                                                                                                                                                                                                                                    |
+| Reference na rad i dokaze      | `docs/w4/README.md`, `docs/w4/AI_FEATURE_PROMPT.md`, `docs/w4/AI_PROVIDER_CONTRACT.md`, `docs/w4/AI_EVALS.md`, `docs/EVIDENCE_W04.md`, `docs/AI_USAGE_LOG.md`, `specs/001-ai-coach/`; javni repozitorijum: <https://github.com/Dusan-Nikolic-98/SELFBOUND_Game> |
 
 ## 2. Moj status
 
@@ -33,7 +33,7 @@ Za implementaciju i dokumentaciju korišćeni su Codex i Claude (Cowork). AI pre
 
 ## 4. Sledeći korak
 
-**NEDOSTAJE:** potvrditi jedan konkretan sledeći korak i njegovu tačku završetka. Kao predlog koji treba da potvrdim jeste dodavanje još jedne jasno ograničene AI funkcionalnosti, nakon što se završi otvoreni manualni UI/focus play-test.
+Dodavanje još jedne jasno ograničene AI funkcionalnosti, nakon što se završi otvoreni manualni UI/focus play-test.
 
 ## 5. Poverljiva napomena za tutora
 
