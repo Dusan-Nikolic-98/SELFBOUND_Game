@@ -133,5 +133,6 @@ The current ignored-environment check returned `root_env_exists=True` and `.giti
 
 ## Contribution record
 
+- Milena Paripovic: prepared the W04 documentation artifacts, completed the security checklist, ran the typecheck/test/build checks, reviewed the diff, and prepared the weekly reports.
+
 - Pair member A: Dušan Nikolić — `[FILL: pair-confirmed contribution]`.
-- Pair member B: Milena Paripović — `[FILL: pair-confirmed contribution]`.
