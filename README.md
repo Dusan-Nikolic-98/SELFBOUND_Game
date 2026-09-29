@@ -28,6 +28,20 @@ The frontend is served at `http://127.0.0.1:4173`; the backend listens at `http:
 npm run dev
 ```
 
+For live Gemini mode, copy the example environment file to a local `.env` file in the repository root and configure the required backend variables:
+
+```sh
+cp .env.example .env
+```
+
+Then start the combined frontend/backend development environment with the `.env` file loaded:
+
+```sh
+node --env-file=.env scripts/dev.mjs
+```
+
+Use `npm run dev` or `npm start` when using the default deterministic fake provider. The local `.env` file is ignored by git and must never be committed.
+
 Check the backend health endpoint:
 
 ```sh
