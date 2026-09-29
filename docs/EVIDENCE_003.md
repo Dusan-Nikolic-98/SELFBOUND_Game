@@ -220,3 +220,78 @@ This editor-configuration fix was made before the controlled change. It is recor
 **Check and result:** `npm test` passed 39/39; `npm run typecheck`, `npm run build`, and `node scripts/check-reachability.mjs` passed. Under `npm run dev`, headless Edge observed zero Coach POSTs with no history; after Game Over it sent `POST http://127.0.0.1:3001/api/ai/coach` from `http://127.0.0.1:4173`, received CORS preflight 204 and Coach response 200, and rendered deterministic advice. After terminal reset, an active run fired a shot and created a green threat, while the next request still contained exactly the one archived run. A 503 response rendered the generic unavailable message. Invalid-request/provider-zero-call behavior and provider-failure mapping also passed in the backend tests.
 
 **Limitation:** the browser check was headless and verified behavior/network traffic, not visual layout or keyboard focus. No Gemini or live provider was used. The successful 200 response came from the default `FakeAiCoachProvider`.
+
+## Week 4 Gemini API-path diagnosis addendum (2026-09-28)
+
+**Claim:** the earlier minimal SDK Interactions timeout cannot be attributed to SELFBOUND telemetry, prompt, or structured output. The final comparison establishes that both API paths can respond in this environment, but does not establish the cause of the earlier stall.
+
+**Signal:** exactly two generation requests were issued outside the network-restricted sandbox, using the environment-loaded credential, the configured `gemini-3.5-flash-lite`, input `Reply with OK`, one HTTP attempt per stage, and 30-second diagnostic deadlines. No SELFBOUND prompt, schema, tools, or telemetry were included. Only metadata was printed.
+
+| Stage | Started | Elapsed | HTTP status | Result | HTTP attempts |
+|---|---|---|---|---|---|
+| A: Node built-in fetch, POST `/v1beta/interactions`, `store:false` | Yes | 8,153 ms | 200 | Completed | 1 |
+| B: SDK 2.24.0 `models.generateContent`, request-level `config.httpOptions.retryOptions.attempts:1` | Yes | 18,361 ms | 200 | Text generated | 1 |
+
+**Problem:** both minimal requests exceeded the production 7-second attempt deadline. Separately, the production Interactions adapter supplied `generation_config.temperature` despite its absence from the installed generation schema/API reference, and client `httpOptions.retryOptions` did not disable the generated Interactions client's default retries.
+
+**Hypothesis:** latency variability or an execution/network-path difference can account for the earlier minimal SDK timeout; this comparison cannot distinguish them. The two configuration mismatches are independently confirmed defects, but neither was present in the earlier minimal diagnostic, so they do not explain that timeout.
+
+**Minimum change:** remove `temperature`; pass `retries: { strategy: "none" }` directly to `interactions.create`. Preserve Interactions, model, stateless schema, contracts, fake provider, 7,000 ms per attempt, maximum two attempts, and 500 ms retry delay. Add an optional HTTP transport seam for offline SDK tests. Delete the temporary diagnostic script after the two calls.
+
+**Check:** inspect SDK 2.24.0 request construction/options and compare the actual outgoing production request through an offline transport. Verify its endpoint, exact body, output/usage extraction, cancellation, and effective HTTP attempt counts. Run `npm test`, `npm run typecheck`, and `npm run build`.
+
+**Result:** all 55 offline tests passed, including four new real-SDK transport-double regressions. Typecheck and build passed. The outgoing production request uses the same documented `/v1beta/interactions` endpoint, with the intentional Coach prompt/schema/output-cap additions. No further request-shape or AbortSignal defect was found. Request-level retry suppression now enforces one HTTP attempt per SDK call and at most two through the Coach wrapper. No production timeout increase or switch to `generateContent` was made or recommended from these two samples; `generateContent` was slower here.
+
+**Limitation:** one success per path is not a latency distribution or a live Coach validation. The current SDK Interactions path was inspected offline, not reissued live, because the two-call limit was exhausted. The preceding timeout and these successes occurred at different times; their execution conditions are not a controlled comparison. No explicit provider error was returned in this diagnostic. A larger timeout might accommodate these measured minimal calls, but these observations do not establish an appropriate production Coach budget. Successful live structured Coach advice remains unverified.
+
+**Final checks:** `node scripts/check-reachability.mjs` passed all four stages (`RESULT: PASS - every target is capturable`); `git diff --check` found no whitespace errors. The existing Node module-type warning and Git line-ending notices were emitted. `.env` is ignored and untracked with no history for that path; the example contains an empty key; a frontend source/build scan found no provider credential/SDK/auth wiring. No credential-value search or exhaustive historical secret audit was performed.
+
+References: [Interactions REST endpoint and generation schema](https://ai.google.dev/api/interactions-api), [API overview and authentication example](https://ai.google.dev/gemini-api/docs/interactions-overview). The overview still mentions temperature generically; the API reference and installed Interactions schema omit it, so the adapter follows the latter.
+
+## Week 4 full structured REST Coach diagnostic (2026-09-28)
+
+**Claim:** a successful minimal REST request does not yet establish that the full structured Coach workload completes within a usable deadline.
+
+**Signal:** one direct Node built-in `fetch` POST to the documented `/v1beta/interactions` endpoint used `gemini-3.5-flash-lite`, the actual production request builder (system instruction, response schema, `store:false`, and 512-token cap), and one synthetic Game Over summary accepted by `validateAiCoachRequest`. The script did not instantiate or call the SDK. It consumed the environment-loaded key only for authentication, disabled redirects, made no retry, and applied a 30-second deadline through response processing.
+
+**Problem:** the request hit the deadline in **30,015 ms**, before receiving an HTTP status. Envelope/advice JSON parsing and authoritative `validateAiCoachAdvice` validation could not run. Safe result: `timeout`; no response category or token usage was available. Exactly **one live generation request** was made in this task.
+
+**Hypothesis:** latency or an intermittent transport/provider stall remains possible. This single full-workload failure, compared with earlier minimal successes at different times, does not isolate prompt, schema, transport, or provider latency as the cause.
+
+**Minimum change:** no production change in this task. The requested REST migration was conditional on successful runtime-validated advice, which was not obtained. Keep the existing SDK Interactions adapter and its 7,000 ms per-attempt / maximum two attempts / 500 ms delay policy pending evidence. A new 15–20 second budget cannot be selected from this unsuccessful full-workload measurement. Do not infer full `generateContent` compatibility or latency from its earlier minimal success. No production-path live validation was performed, and no further generation call was made. The temporary diagnostic script was removed.
+
+**Check/result:** diagnostic output contained only HTTP-status availability, elapsed time, parsing/validation flags, fixed failure category, and call count. It excluded prompts, telemetry payloads, raw responses/errors, authentication headers, environment contents, and credential values. The agent did not inspect the real environment file or credential value.
+
+**Limitation:** neither the full REST Coach workload nor the production SDK Coach path has successful live validation. The reason for the 30-second stall remains unresolved. The seven-second production policy is known to exclude the earlier 8,153 ms minimal REST success; retaining it here records the unchanged implementation, not a claim that it is adequate. Offline checks are recorded in the corresponding EVALS addendum.
+
+## Week 4 GenerateContent model viability result (2026-09-28)
+
+**Claim:** the full structured Coach workload is viable with `gemini-3.1-flash-lite` through installed SDK 2.24.0 `models.generateContent`, based on one successfully validated live sample.
+
+**Signal:** one request using the real production system instruction and Coach schema, a synthetic completed run accepted by the backend validator, no tools, and a 512-token output cap returned HTTP 200 in **6,420 ms**. JSON parsing and `validateAiCoachResponse({ advice })` both passed. Primary category: `threat_management`. Reported tokens: 550 input, 210 output, 760 total. Exactly one HTTP attempt; no Interactions request or other model was tested in this task.
+
+**Problem/hypothesis:** the previous full Interactions request stalled beyond 30 seconds. Changing both model and API in this authorized test establishes an available working combination but does not isolate the cause of the previous stall.
+
+**Minimum proposed change:** migrate the backend provider to `models.generateContent` with explicit Week 4 model `gemini-3.1-flash-lite`, retaining the existing provider interface, fake provider, prompt semantics, contracts, validators, frontend behavior, and safe failures. Use a **15,000 ms total operation deadline**, including any retry delay and second attempt. This gives about 8.6 seconds of headroom over the measured 6.42 seconds without doubling the total wait on timeout. Do not retry after the local deadline; permit at most two attempts for explicit transient network/provider failures inside the remaining budget. This is a recommendation only; no production migration was made.
+
+**Check/result:** structured output used documented GenerateContent `config.responseMimeType` plus `config.responseJsonSchema`; request-level `httpOptions.retryOptions.attempts:1` disabled retries, and a transport counter prevented any second HTTP call. GenerateContent has no supported `store` parameter, so none was sent. No conversation history, cache identifier, or tools were configured. This does not assert a provider-wide data retention policy. The 30-second AbortSignal/deadline covered generation and validation. The temporary diagnostic was removed; no offline checks were run because production/source files were unchanged in this task.
+
+**Limitation:** one live sample proves viability, not a latency distribution, repeatability, advice quality across cases, or production integration. The current production SDK Interactions path remains unchanged. No real environment-file contents or credential value was inspected by the agent, and output contained only safe metadata.
+
+## Week 4 GenerateContent production migration (2026-09-29)
+
+**Claim:** production AI Coach now uses the API/model combination that passed the full structured viability check, while preserving the public Coach contracts and bounding retries within one total deadline.
+
+**Signal:** the previous viability call completed the full structured workload in 6,420 ms with valid JSON, authoritative response validation, category `threat_management`, and 550 input / 210 output / 760 total tokens. The migrated production provider subsequently completed one limited live Coach request in 2,593 ms, with one provider/HTTP attempt, runtime validation passed, category `threat_management`, and 531 input / 197 output / 728 total tokens.
+
+**Problem:** the then-current production Interactions route and 7,000 ms per-attempt policy did not match the known successful full structured path and could permit almost 15 seconds plus routing overhead across two attempts. One viability sample does not establish a latency distribution.
+
+**Hypothesis:** Gemini Developer API `models.generateContent` with `gemini-3.1-flash-lite` supports the established Coach prompt/schema and completes the bounded request within a 15-second total deadline in this environment. The live migration call supports viability; it does not establish a percentile or guarantee.
+
+**Minimum change:** switched only the backend Gemini adapter/configuration to `models.generateContent` and `gemini-3.1-flash-lite`; retained the production system instruction, bounded summaries, output schema, validators, backend endpoint, fake provider, and public request/response contracts. Replaced the per-attempt timeout with a monotonic 15,000 ms total deadline, two maximum provider attempts, 500 ms retry delay, and at least 1,000 ms useful attempt budget after that delay. SDK retries are set to one HTTP request per adapter call.
+
+**Check:** `npm test`; `npm run typecheck`; `npm run build`; `node scripts/check-reachability.mjs`; `git diff --check`; offline real-SDK HTTP doubles for exact GenerateContent request fields, response/usage extraction, cancellation, one request per SDK call, maximum two HTTP calls, retryable/non-retryable statuses, invalid local input, malformed output, and shared deadline. Then one limited live production-path validation.
+
+**Result:** PASS. `npm test`: 55 passed, 0 failed. Typecheck and build passed. Reachability returned `RESULT: PASS - every target is capturable` with the existing Node module-type warning. `git diff --check` passed with Git line-ending notices. The live production-path call passed in 2,593 ms with one attempt, valid response, `threat_management`, 531 input / 197 output / 728 total tokens. An initial runner invocation failed local configuration validation before a provider call; the one actual live request ran with the intended backend provider/model process settings. No further live request was made.
+
+**Limitation:** the current live call and the earlier 6,420 ms viability sample are two observations, not a latency distribution or advice-quality evaluation. No browser visual/focus play-test was performed as part of this migration. No `.env` contents or credential value were inspected, printed, or searched; the live runner emitted only safe metadata. No raw advice, telemetry, provider response, error, or authorization material was recorded.

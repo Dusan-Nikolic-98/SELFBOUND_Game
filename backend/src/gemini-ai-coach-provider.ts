@@ -1,14 +1,15 @@
-import type { GoogleGenAI as GoogleGenAIClient } from "@google/genai" with { "resolution-mode": "import" };
-import { AiCoachRequest, validateAiCoachAdvice } from "./ai-coach-contract.js";
+import type { GoogleGenAI as GoogleGenAIClient, HttpOptions } from "@google/genai" with { "resolution-mode": "import" };
+import { performance } from "node:perf_hooks";
+import { AiCoachRequest, validateAiCoachAdvice, validateAiCoachRequest } from "./ai-coach-contract.js";
 import { GEMINI_MODEL_ID } from "./ai-coach-config.js";
 import { AI_COACH_SYSTEM_INSTRUCTION, serializeAiCoachInput } from "./ai-coach-prompt.js";
 import { AiCoachProvider } from "./ai-coach-provider.js";
 
-export const GEMINI_ATTEMPT_TIMEOUT_MS = 7_000;
+export const GEMINI_TOTAL_DEADLINE_MS = 15_000;
 export const GEMINI_MAX_ATTEMPTS = 2;
 export const GEMINI_RETRY_DELAY_MS = 500;
+export const GEMINI_MIN_RETRY_BUDGET_MS = 1_000;
 export const GEMINI_MAX_OUTPUT_TOKENS = 512;
-export const GEMINI_TEMPERATURE = 0.2;
 
 export type GeminiFailureCategory =
   | "timeout"
@@ -18,29 +19,29 @@ export type GeminiFailureCategory =
   | "invalid_provider_output"
   | "unknown";
 
-export type GeminiUsage = { inputTokens?: number; outputTokens?: number };
-export type GeminiInteractionResult = { outputText?: string; usage?: GeminiUsage };
+export type GeminiUsage = { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+export type GeminiGenerateContentResult = { text?: string; usage?: GeminiUsage };
 
-export type GeminiInteractionRequest = {
+export type GeminiGenerateContentRequest = {
   model: string;
-  input: string;
-  system_instruction: string;
-  store: false;
-  response_format: {
-    type: "text";
-    mime_type: "application/json";
-    schema: Record<string, unknown>;
+  contents: string;
+  config: {
+    systemInstruction: string;
+    responseMimeType: "application/json";
+    responseJsonSchema: Record<string, unknown>;
+    maxOutputTokens: number;
+    abortSignal?: AbortSignal;
   };
-  generation_config: { temperature: number; max_output_tokens: number };
 };
 
-export interface GeminiInteractionsClient {
-  create(request: GeminiInteractionRequest, signal: AbortSignal): Promise<GeminiInteractionResult>;
+export interface GeminiGenerateContentClient {
+  generateContent(request: GeminiGenerateContentRequest, signal: AbortSignal): Promise<GeminiGenerateContentResult>;
 }
 
 export type GeminiHttpOptions = {
   timeout: number;
   retryOptions: { attempts: number; httpStatusCodes: number[] };
+  fetch?: HttpOptions["fetch"];
 };
 
 export type GeminiUsageRecord = {
@@ -54,13 +55,14 @@ export type GeminiUsageRecord = {
   failureCategory?: GeminiFailureCategory;
   inputTokens?: number;
   outputTokens?: number;
+  totalTokens?: number;
 };
 
-export type GeminiSdkFactory = (apiKey: string, httpOptions: GeminiHttpOptions) => GeminiInteractionsClient;
+export type GeminiSdkFactory = (apiKey: string, httpOptions: GeminiHttpOptions) => GeminiGenerateContentClient;
 
 export const GEMINI_SDK_HTTP_OPTIONS: GeminiHttpOptions = {
-  timeout: GEMINI_ATTEMPT_TIMEOUT_MS,
-  // The adapter below owns retries. Never combine them with the SDK's default five attempts.
+  timeout: GEMINI_TOTAL_DEADLINE_MS,
+  // The Coach provider owns the two-attempt policy. Do not let the SDK add retries.
   retryOptions: { attempts: 1, httpStatusCodes: [] },
 };
 
@@ -79,14 +81,16 @@ const responseSchema: Record<string, unknown> = {
   required: ["summary", "primaryCategory", "primaryAdvice", "practiceGoal"],
 };
 
-export function buildGeminiInteractionRequest(request: AiCoachRequest, model: string): GeminiInteractionRequest {
+export function buildGeminiGenerateContentRequest(request: AiCoachRequest, model: string): GeminiGenerateContentRequest {
   return {
     model,
-    input: serializeAiCoachInput(request),
-    system_instruction: AI_COACH_SYSTEM_INSTRUCTION,
-    store: false,
-    response_format: { type: "text", mime_type: "application/json", schema: responseSchema },
-    generation_config: { temperature: GEMINI_TEMPERATURE, max_output_tokens: GEMINI_MAX_OUTPUT_TOKENS },
+    contents: serializeAiCoachInput(request),
+    config: {
+      systemInstruction: AI_COACH_SYSTEM_INSTRUCTION,
+      responseMimeType: "application/json",
+      responseJsonSchema: responseSchema,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    },
   };
 }
 
@@ -97,13 +101,18 @@ export function createGeminiSdkFactory(): GeminiSdkFactory {
     const sdkModule = require("@google/genai") as { GoogleGenAI: typeof GoogleGenAIClient };
     const sdk = new sdkModule.GoogleGenAI({ apiKey, httpOptions });
     return {
-      create: async (request, signal) => {
-        const result = await sdk.interactions.create(request, { signal });
+      generateContent: async (request, signal) => {
+        const result = await sdk.models.generateContent({
+          model: request.model,
+          contents: request.contents,
+          config: { ...request.config, abortSignal: signal },
+        });
         return {
-          outputText: result.output_text,
+          text: result.text,
           usage: {
-            inputTokens: result.usage?.total_input_tokens,
-            outputTokens: result.usage?.total_output_tokens,
+            inputTokens: result.usageMetadata?.promptTokenCount,
+            outputTokens: result.usageMetadata?.candidatesTokenCount,
+            totalTokens: result.usageMetadata?.totalTokenCount,
           },
         };
       },
@@ -129,8 +138,10 @@ function getHttpStatus(error: unknown): number | undefined {
 }
 
 function getNetworkCode(error: unknown): string | undefined {
-  if (!isRecord(error) || !isRecord(error.cause)) return undefined;
-  return typeof error.cause.code === "string" ? error.cause.code : undefined;
+  if (!isRecord(error)) return undefined;
+  const cause = error.cause;
+  if (isRecord(cause) && typeof cause.code === "string") return cause.code;
+  return typeof error.code === "string" ? error.code : undefined;
 }
 
 const NETWORK_ERROR_CODES = new Set([
@@ -145,7 +156,8 @@ function classifyFailure(error: unknown): GeminiProviderFailure {
   if (status === 429) return new GeminiProviderFailure("rate_limited", true);
   if (status === 408) return new GeminiProviderFailure("timeout", true);
   if (status !== undefined && [500, 502, 503, 504].includes(status)) return new GeminiProviderFailure("provider_unavailable", true);
-  if (getNetworkCode(error) && NETWORK_ERROR_CODES.has(getNetworkCode(error)!)) {
+  const networkCode = getNetworkCode(error);
+  if (networkCode && NETWORK_ERROR_CODES.has(networkCode)) {
     return new GeminiProviderFailure("provider_unavailable", true);
   }
   return new GeminiProviderFailure("unknown", false);
@@ -154,9 +166,9 @@ function classifyFailure(error: unknown): GeminiProviderFailure {
 type ProviderOptions = {
   apiKey?: string;
   model?: string;
-  client?: GeminiInteractionsClient;
+  client?: GeminiGenerateContentClient;
   sdkFactory?: GeminiSdkFactory;
-  timeoutMs?: number;
+  totalDeadlineMs?: number;
   retryDelayMs?: number;
   maxAttempts?: number;
   now?: () => number;
@@ -165,9 +177,9 @@ type ProviderOptions = {
 };
 
 export class GeminiAiCoachProvider implements AiCoachProvider {
-  private readonly client: GeminiInteractionsClient;
+  private readonly client: GeminiGenerateContentClient;
   private readonly model: string;
-  private readonly timeoutMs: number;
+  private readonly totalDeadlineMs: number;
   private readonly retryDelayMs: number;
   private readonly maxAttempts: number;
   private readonly now: () => number;
@@ -176,13 +188,16 @@ export class GeminiAiCoachProvider implements AiCoachProvider {
 
   constructor(options: ProviderOptions) {
     this.model = options.model ?? GEMINI_MODEL_ID;
-    this.timeoutMs = options.timeoutMs ?? GEMINI_ATTEMPT_TIMEOUT_MS;
+    this.totalDeadlineMs = options.totalDeadlineMs ?? GEMINI_TOTAL_DEADLINE_MS;
     this.retryDelayMs = options.retryDelayMs ?? GEMINI_RETRY_DELAY_MS;
     this.maxAttempts = options.maxAttempts ?? GEMINI_MAX_ATTEMPTS;
+    if (!Number.isFinite(this.totalDeadlineMs) || this.totalDeadlineMs <= 0) {
+      throw new Error("Gemini Coach requires a positive total deadline.");
+    }
     if (!Number.isInteger(this.maxAttempts) || this.maxAttempts !== GEMINI_MAX_ATTEMPTS) {
       throw new Error("Gemini Coach supports exactly two maximum attempts.");
     }
-    this.now = options.now ?? Date.now;
+    this.now = options.now ?? (() => performance.now());
     this.sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
     this.logger = options.logger ?? ((record) => console.info(JSON.stringify(record)));
 
@@ -197,18 +212,28 @@ export class GeminiAiCoachProvider implements AiCoachProvider {
   }
 
   async getAdvice(request: AiCoachRequest): Promise<unknown> {
+    if (!validateAiCoachRequest(request)) throw new GeminiProviderFailure("unknown", false);
+
     const startedAt = this.now();
-    const geminiRequest = buildGeminiInteractionRequest(request, this.model);
+    const deadline = startedAt + this.totalDeadlineMs;
+    const geminiRequest = buildGeminiGenerateContentRequest(request, this.model);
     let attempts = 0;
 
     while (attempts < this.maxAttempts) {
+      const remainingMs = deadline - this.now();
+      if (remainingMs <= 0) {
+        const failure = new GeminiProviderFailure("timeout", false);
+        this.logFailure(startedAt, attempts, failure);
+        throw failure;
+      }
+
       attempts += 1;
       try {
-        const result = await this.callWithTimeout(geminiRequest);
+        const result = await this.callWithinDeadline(geminiRequest, remainingMs);
         let parsed: unknown;
         try {
-          if (typeof result.outputText !== "string") throw new Error("Missing structured output.");
-          parsed = JSON.parse(result.outputText) as unknown;
+          if (typeof result.text !== "string") throw new Error("Missing structured output.");
+          parsed = JSON.parse(result.text) as unknown;
         } catch {
           throw new GeminiProviderFailure("invalid_provider_output", false);
         }
@@ -218,51 +243,63 @@ export class GeminiAiCoachProvider implements AiCoachProvider {
           operation: "ai.coach",
           provider: "gemini",
           model: this.model,
-          timestamp: new Date(this.now()).toISOString(),
+          timestamp: new Date().toISOString(),
           latencyMs: Math.max(0, this.now() - startedAt),
           success: true,
           attempts,
           ...(result.usage?.inputTokens === undefined ? {} : { inputTokens: result.usage.inputTokens }),
           ...(result.usage?.outputTokens === undefined ? {} : { outputTokens: result.usage.outputTokens }),
+          ...(result.usage?.totalTokens === undefined ? {} : { totalTokens: result.usage.totalTokens }),
         });
         return parsed;
       } catch (error) {
         const failure = classifyFailure(error);
-        if (failure.retryable && attempts < this.maxAttempts) {
+        const afterFailureMs = deadline - this.now();
+        if (failure.retryable && attempts < this.maxAttempts && afterFailureMs > this.retryDelayMs + GEMINI_MIN_RETRY_BUDGET_MS) {
           await this.sleep(this.retryDelayMs);
-          continue;
+          if (deadline - this.now() > GEMINI_MIN_RETRY_BUDGET_MS) continue;
+          const deadlineFailure = new GeminiProviderFailure("timeout", false);
+          this.logFailure(startedAt, attempts, deadlineFailure);
+          throw deadlineFailure;
         }
-        this.log({
-          operation: "ai.coach",
-          provider: "gemini",
-          model: this.model,
-          timestamp: new Date(this.now()).toISOString(),
-          latencyMs: Math.max(0, this.now() - startedAt),
-          success: false,
-          attempts,
-          failureCategory: failure.category,
-        });
+        this.logFailure(startedAt, attempts, failure);
         throw failure;
       }
     }
-    throw new GeminiProviderFailure("unknown", false);
+
+    const failure = new GeminiProviderFailure("timeout", false);
+    this.logFailure(startedAt, attempts, failure);
+    throw failure;
   }
 
-  private async callWithTimeout(request: GeminiInteractionRequest): Promise<GeminiInteractionResult> {
+  private async callWithinDeadline(request: GeminiGenerateContentRequest, remainingMs: number): Promise<GeminiGenerateContentResult> {
     const controller = new AbortController();
     let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
       timeoutHandle = setTimeout(() => {
         controller.abort();
-        reject(new GeminiProviderFailure("timeout", true));
-      }, this.timeoutMs);
+        reject(new GeminiProviderFailure("timeout", false));
+      }, remainingMs);
     });
-    const call = Promise.resolve().then(() => this.client.create(request, controller.signal));
+    const call = Promise.resolve().then(() => this.client.generateContent(request, controller.signal));
     try {
       return await Promise.race([call, timeout]);
     } finally {
       if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
     }
+  }
+
+  private logFailure(startedAt: number, attempts: number, failure: GeminiProviderFailure): void {
+    this.log({
+      operation: "ai.coach",
+      provider: "gemini",
+      model: this.model,
+      timestamp: new Date().toISOString(),
+      latencyMs: Math.max(0, this.now() - startedAt),
+      success: false,
+      attempts,
+      failureCategory: failure.category,
+    });
   }
 
   private log(record: GeminiUsageRecord): void {

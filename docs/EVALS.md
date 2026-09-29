@@ -125,7 +125,7 @@ The browser checks used headless Edge with the repository's combined development
 
 ### W04 Gemini provider implementation addendum
 
-The offline Gemini adapter tests use an injected Interactions client; they do not make provider calls. The backend route retains the existing completed-run request and advice response contracts.
+Historical implementation state before the API migration below: the offline Gemini adapter used an injected Interactions client and did not make provider calls. Its recorded model and timeout policy are superseded by the GenerateContent production migration below; the backend route's completed-run request and advice response contracts remain unchanged.
 
 | Check | Evidence | Result |
 |---|---|---|
@@ -144,3 +144,79 @@ The offline Gemini adapter tests use an injected Interactions client; they do no
 Validation actually run: `npm run typecheck` passed; `npm run build` passed; `npm test` passed (51 tests, 0 failed); `node scripts/check-reachability.mjs` returned `RESULT: PASS - every target is capturable`; `npm run test:ai:live` built the backend and reported `NOT PERFORMED` because `AI_COACH_PROVIDER` was not set to `gemini`. No live Gemini call was made. The reachability run emitted a Node module-type warning for the generated frontend module, then completed successfully.
 
 Security checks confirmed the root `.env` path is ignored, no real root `.env` file is present in this checkout, no tracked `.env` path or `.env` history exists, `.env.example` contains placeholders only, and the built frontend source/output contains no Gemini key/config, SDK, provider URL, or provider auth-header wiring. The existing backend request validator still runs before provider access and provider advice is validated before route success. Manual Gemini quality evaluation and the existing Coach UI visual/focus play-test remain outstanding.
+
+### W04 API-path diagnosis follow-up (2026-09-28)
+
+The preceding implementation evidence is historical. The current environment-loaded credential was consumed only inside the diagnostic process; neither the real `.env` contents nor credential value was inspected or printed.
+
+| Check | Actual result |
+|---|---|
+| A: direct REST Interactions, minimal stateless request | HTTP 200, completed, 8,153 ms, one HTTP attempt |
+| B: SDK `models.generateContent`, minimal request | HTTP 200, generated text, 18,361 ms, one HTTP attempt |
+| Live generation count | Exactly two; no live Coach request or additional SDK Interactions call |
+| Installed SDK transport-double regressions | PASS: wire fields/output usage, cancellation, no SDK retries on 429/503/network errors, at most two HTTP attempts through the Coach wrapper |
+| Offline suite | PASS: `npm test`, 55 tests, 0 failures |
+| Static/build checks | PASS: `npm run typecheck`; `npm run build` |
+| Reachability and diff | PASS: `node scripts/check-reachability.mjs`, all four targets capturable; `git diff --check`, no whitespace errors. Existing Node module-type and Git line-ending warnings remain. |
+| Secret boundary | PASS: `.env` ignored/untracked with no path history; example has empty key; no provider key/SDK/auth wiring found in frontend source/output; diagnostic output contains metadata only |
+| Secret value anywhere in historical content | NOT VERIFIED: the credential value was deliberately never inspected or searched |
+| Live structured Coach validation | NOT VERIFIED by these minimal calls |
+
+Production cleanup removes unsupported Interactions temperature and disables retries at the actual request level. Interactions and the 7,000 ms / two-attempt / 500 ms policy remain. Both minimal calls exceeded seven seconds; no API switch or new production timeout is recommended from this limited sample. See the [diagnosis evidence](EVIDENCE_003.md#week-4-gemini-api-path-diagnosis-addendum-2026-09-28) for the findings and limits. Temporary diagnostics were removed.
+
+### W04 full structured REST Coach diagnostic (2026-09-28)
+
+| Check | Actual result |
+|---|---|
+| Real Coach request construction | Production system instruction/schema, `store:false`, configured model, and synthetic one-run telemetry passing the backend request validator |
+| Direct REST transport | One Node built-in fetch request; SDK not used; no retries or redirects |
+| Live result | TIMEOUT at 30,015 ms; no HTTP status received |
+| JSON parsing / runtime advice validation | NOT VERIFIED: no response arrived to parse or validate |
+| Response category / token usage | Unavailable; fixed diagnostic category `timeout` |
+| Production migration | Not performed: successful full REST validation was the prerequisite |
+| Production-path live check | Not performed; total live generation calls in this task: one |
+| Production timeout / retries | Unchanged: 7,000 ms per attempt, maximum two attempts, 500 ms retry delay; no evidence for a suitable new full-workload deadline |
+| Offline regression checks | PASS: `npm test`, all 55 tests; includes Gemini adapter, invalid-input zero calls, malformed output, exact HTTP retry counts, and timeout/cancellation |
+| Build/static checks | PASS: `npm run build:backend` before diagnosis; `npm run typecheck`; `npm run build`; `git diff --check` |
+| Environment path checks | PASS: root `.env` ignored/untracked, no Git history for that path; example key is empty. Credential value and other historical contents deliberately not searched |
+
+The temporary script was removed. Prior production/test modifications were preserved. See the [full diagnostic evidence](EVIDENCE_003.md#week-4-full-structured-rest-coach-diagnostic-2026-09-28) for the uncertainty and unchanged-policy limitation.
+
+### W04 Gemini 3.1 Flash-Lite GenerateContent viability (2026-09-28)
+
+| Check | Actual result |
+|---|---|
+| Model/API | `gemini-3.1-flash-lite`, installed SDK 2.24.0 `models.generateContent` |
+| Full Coach workload | Production system instruction, production Coach schema via `responseMimeType: "application/json"` and `responseJsonSchema`, 512-token cap, one synthetic run accepted by the request validator, no tools |
+| Live result | PASS: HTTP 200, 6,420 ms, exactly one HTTP attempt, 30-second diagnostic deadline |
+| Structured output | PASS: JSON parsed and `validateAiCoachResponse({ advice })` accepted the output |
+| Returned category | `threat_management` |
+| Token usage | Input 550; output 210; total 760; thought count not reported |
+| Retry/storage options | Request-level SDK attempts set to one; transport call-count guard; redirects disabled. No supported GenerateContent `store` option, so it was omitted |
+| Migration | Recommended, not implemented; production model/API/timeout remain unchanged |
+| Proposed deadline | 15 seconds total, including any retry delay/second attempt; no retry after local deadline; at most two attempts for explicit transient network/provider failures inside the remaining budget |
+| Offline checks | Not run: no production/source changes; temporary diagnostic removed |
+| Secret handling | Environment-loaded credential consumed only by the diagnostic SDK; no real environment-file contents, key value, headers, prompt, telemetry, raw response, or raw errors emitted |
+
+This is one successful full-workload sample, not a latency percentile or proof of the then-current production Interactions path. The result authorized the migration recorded below. The GenerateContent structured-output fields were verified against the installed SDK declarations and [official API reference](https://ai.google.dev/api/generate-content).
+
+### W04 GenerateContent production migration (2026-09-29)
+
+| Check | Actual result |
+|---|---|
+| Production provider/model | PASS: backend now uses `@google/genai` `models.generateContent` with `gemini-3.1-flash-lite` |
+| Production request | PASS: unchanged Coach system instruction, bounded completed-run summary, JSON MIME/schema config, 512-token cap, no tools/history/store field |
+| Runtime validation | PASS: local request validates before provider invocation; output parses as unknown and passes the authoritative advice validator before success |
+| Retry behavior | PASS: only connection/network and HTTP 408/429/500/502/503/504 retry; HTTP 400/401/403, invalid input/output, and local deadline expiration do not. Two provider attempts maximum; SDK transport allows one HTTP request per provider attempt. |
+| Deadline behavior | PASS: a single monotonic 15,000 ms budget includes retry delay and both attempts; no second attempt starts without at least 1,000 ms useful time after the retry delay |
+| `npm test` | PASS: 55 tests, 0 failures |
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS |
+| `node scripts/check-reachability.mjs` | PASS: `RESULT: PASS - every target is capturable` (Node emitted the existing module-type warning) |
+| `git diff --check` | PASS: no whitespace errors; Git emitted CRLF conversion notices for edited files |
+| Limited live production-path validation | PASS: one actual Coach operation, 2,593 ms, one attempt, runtime validation passed, category `threat_management`, 531 input / 197 output / 728 total tokens |
+| Initial live runner invocation | No provider call: stopped at local configuration validation with sanitized output. The single live operation was then run with the intended provider/model process settings. |
+| Live call count | One successful live Coach operation; no manual repeat after success |
+| Secret handling | PASS by source/diff review: no credential value was read or added; the runner emitted only model, latency, attempt count, validation result, category, and token counts. `.env` and credential values were not searched or printed. |
+
+The 6,420 ms viability result provided 8,580 ms of observed headroom under the selected total deadline. One successful live migration call confirms the production path works; neither sample establishes a latency distribution. Historical Interactions and seven-second diagnosis records above describe earlier states and remain preserved.

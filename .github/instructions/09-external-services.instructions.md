@@ -7,7 +7,7 @@ Normal gameplay and default fake-provider development run locally; no external s
 ## AI provider boundary
 
 - The AI Coach defaults to a deterministic fake provider behind the backend and can select Gemini Developer API through backend configuration. Browser code must not call Gemini.
-- Read the active feature spec/plan before changing the provider, model, contract, or operational policy. The selected model is `gemini-3.5-flash-lite`.
+- Read the active feature spec/plan before changing the provider, model, contract, or operational policy. The selected model is `gemini-3.1-flash-lite`, called through SDK `models.generateContent` with at most two HTTP attempts inside one 15-second deadline.
 - Read credentials from backend environment configuration only. Do not document credential values or require a key for default development.
 - Keep automated tests offline with fake providers/test doubles. Live validation is an explicit opt-in command, not part of `npm test`.
 - Timeout, retry, and fallback behavior must follow the feature/provider contract; do not invent retry loops or fallback models.

@@ -84,4 +84,4 @@ Frame-by-frame or autonomous AI; current unfinished-run analysis; AI-controlled 
 
 ## Open questions
 
-None for the Core contract. The authorized Gemini implementation task resolves the provider choices in `plan.md`: official `@google/genai` 2.x SDK, Gemini Developer API Interactions, stable `gemini-3.5-flash-lite`, and stateless `store: false`. These implementation choices do not change the request/response contract or feature scope.
+None for the Core contract. The authorized Gemini implementation task resolves the provider choices in `plan.md`: official `@google/genai` 2.x SDK, Gemini Developer API `models.generateContent`, and `gemini-3.1-flash-lite`. GenerateContent has no supported `store` option; the request remains stateless with no conversation history. These implementation choices do not change the request/response contract or feature scope.

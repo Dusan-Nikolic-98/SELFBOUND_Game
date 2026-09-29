@@ -10,7 +10,7 @@ specs/
     └── tasks.md
 ```
 
-The `001-ai-coach` folder contains the approved feature contract, plan, and implementation tasks. Its fake-provider vertical slice is implemented; Gemini integration remains future work.
+The `001-ai-coach` folder contains the approved feature contract, plan, and implementation tasks. Its fake-provider vertical slice and backend-only Gemini provider are implemented; consult the plan and task log for remaining manual UI and evidence work.
 
 ## `spec.md`
 

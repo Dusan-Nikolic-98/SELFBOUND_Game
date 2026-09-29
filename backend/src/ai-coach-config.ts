@@ -1,4 +1,4 @@
-export const GEMINI_MODEL_ID = "gemini-3.5-flash-lite";
+export const GEMINI_MODEL_ID = "gemini-3.1-flash-lite";
 
 export type AiCoachProviderMode = "fake" | "gemini";
 

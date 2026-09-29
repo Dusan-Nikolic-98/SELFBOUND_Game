@@ -1,6 +1,6 @@
 # AI Coach implementation tasks
 
-These tasks track the approved feature implementation. Completed tasks are checked; remaining tasks are future work. Preserve gameplay rules and the existing AI Coach contracts. The current authorized implementation task covers the Gemini provider/reliability phase; live validation remains opt-in.
+These tasks track the approved feature implementation. Completed tasks are checked; remaining tasks are future work. Preserve gameplay rules and the existing AI Coach contracts. The migration task updates the earlier Gemini provider/reliability choice; limited live validation follows offline checks.
 
 The AI Coach markup and request flow are implemented. T013's browser/network integration check is complete; T008 remains open for visual layout and keyboard/focus inspection. Automated client-to-backend HTTP integration is also covered by tests.
 
@@ -26,19 +26,32 @@ The AI Coach markup and request flow are implemented. T013's browser/network int
 
 - [x] **T010 — Add bounded HTTP request parsing and Coach route.** Affected: `backend/src/server.ts` and backend contract modules. Depends: T001, T003. Add `POST /api/ai/coach`, 32 KiB streaming body limit, JSON parsing, allowlisted CORS method/header update, stable validation/error/success envelopes, and pre-provider validation. Preserve `/api/health`. Validation: route tests for method/path/body size/validity; invalid request provider call count is exactly zero.
 - [x] **T011 — Add fake-provider success and safe failure coverage.** Affected: backend route/provider tests. Depends: T010. Cover one/three runs, malformed provider output, fake provider failure and generic response. Validation: A1, A2, A4, A6; tests use no live external service. Live-provider timeout/retry is deferred to the next phase.
-- [x] **T012 — Add bounded transient retry.** Affected: backend provider orchestration/tests. Depends: T011. Enforce a 7,000 ms per-attempt timeout, maximum two total attempts, and 500 ms retry delay; retry only network failures, timeout, and HTTP 408/429/500/502/503/504. Disable SDK retries. Do not retry invalid input, authentication/configuration failures, programming errors, malformed output, or schema failures. Validation: A7 verifies attempt cap and non-retry classes; test timeout/cancellation behavior.
+- [x] **T012 — Add bounded transient retry (historical policy, superseded by the GenerateContent migration below).** Affected: backend provider orchestration/tests. Depends: T011. Original policy: 7,000 ms per-attempt timeout, maximum two total attempts, and 500 ms retry delay. Its timing is no longer production behavior.
 - [x] **T013 — Exercise frontend/backend integration with fake provider.** Automated real-HTTP client-to-backend coverage is implemented. Depends: T008, T010, T011. Verified under the combined `npm run dev` workflow in headless Edge: Game Over success, local CORS preflight, advice rendering, reset usability, active-run exclusion, and generic display for a 503 response. Backend tests verify invalid input makes zero provider calls and provider exceptions map to stable 503 responses. Full visual layout/focus inspection remains in T008; T012's real-provider retry policy is not a prerequisite for the fake slice.
 
 ## Phase 5 — Backend Gemini integration and reliability
 
-- [x] **T014 — Add Gemini adapter and backend environment configuration.** Affected: `backend/src/`, root package manifest/lock, `.env.example`, and runtime docs. Depends: T010–T013. Use official `@google/genai` 2.24.0, Gemini Developer API Interactions, stable `gemini-3.5-flash-lite`, and `store:false`; fake mode remains default. Validation: build/typecheck; inspect frontend output/source for absence of provider credential/config; no secret committed.
-- [x] **T015 — Validate live-provider output and operational metadata.** Affected: provider adapter, startup wiring, tests, and backend logs. Depends: T014. Apply the existing runtime response validator, 7,000 ms attempt timeout, max-two transient attempts with 500 ms delay, and minimal provider/model/time/latency/result/attempt/token metadata. Never log prompts, raw runs/responses/errors, headers, or secrets. Validation: fake tests remain default; explicit opt-in live check only when backend configuration is available, with no key or payload captured in evidence.
+- [x] **T014 — Add Gemini adapter and backend environment configuration (historical implementation, superseded below).** Affected: `backend/src/`, root package manifest/lock, `.env.example`, and runtime docs. Original choice: SDK Interactions, `gemini-3.5-flash-lite`, and `store:false`; production now uses GenerateContent and `gemini-3.1-flash-lite`.
+- [x] **T015 — Validate live-provider output and operational metadata (historical timing policy, superseded below).** Affected: provider adapter, startup wiring, tests, and backend logs. Original policy used 7,000 ms per attempt; the active policy uses one shared 15,000 ms deadline.
 
 ## Phase 6 — End-to-end evaluation and evidence
 
 - [x] **T016 — Complete the W04 evaluation matrix.** Affected: tests and feature evidence. Depends: T001–T015. Cover A1–A11 and Gemini adapter/config/reliability checks from `plan.md` plus heuristic boundaries. Validation: `npm run typecheck`, `npm test`, `npm run build`, then `node scripts/check-reachability.mjs` after frontend build; record actual output.
 - [ ] **T017 — Play-test the browser experience.** Affected: manual verification record. Depends: T013–T016. Exercise zero/one/three runs, active-run request, loading while gameplay continues, failure, success, terminal reset, manual active reset, and narrow layout. Validation: record observed behavior and any limitation; no claim of automated browser coverage.
 - [ ] **T018 — Document feature evidence and agent usage.** Affected: feature docs and repository documentation required by `AGENTS.md`. Depends: T016–T017. Record claims/signals/problems/hypotheses/minimum changes/checks/results/limitations in the owning evidence/eval docs as applicable, and significant agent calls in `docs/AI_USAGE_LOG.md`; never include secrets. Live validation is optional and excluded from `npm test`. Validation: docs agree with shipped behavior and preserve historical Week 3 records.
+
+## API-path diagnosis follow-up (2026-09-28)
+
+- [x] Compare direct REST Interactions and SDK `models.generateContent` with at most two minimal live calls, no retries, and diagnostic-only 30-second deadlines. Both returned HTTP 200 (8,153 ms and 18,361 ms respectively); no API switch or production timeout increase is justified by this single comparison.
+- [x] Remove `generation_config.temperature`, which is absent from the installed Interactions schema, and disable SDK retries using request-level `retries: { strategy: "none" }`.
+- [x] Verify the installed SDK with offline HTTP doubles: wire fields/output extraction, AbortSignal, one HTTP attempt per SDK call, and two maximum attempts through the Coach wrapper. `npm test` passed 55/55; typecheck and build passed.
+
+## GenerateContent production migration
+
+- [x] Replace production Interactions with SDK `models.generateContent`, `gemini-3.1-flash-lite`, the established system instruction, bounded run serialization, JSON response schema, and 512-token cap. Keep fake mode and public contracts unchanged.
+- [x] Replace the old 7,000 ms per-attempt limit with a shared 15,000 ms monotonic operation deadline. Keep a maximum of two provider attempts and the 500 ms delay only when enough deadline remains; SDK retry options permit one HTTP request per SDK call.
+- [x] Cover GenerateContent wire fields, runtime validation, pre-provider request rejection, malformed output, retry classes/count, shared deadline, and no retry after budget exhaustion with offline tests.
+- [x] Run required offline checks, then perform one limited live production-path call and record safe metadata in eval/evidence/usage docs. Result: PASS at 2,593 ms, one attempt, runtime validation passed, `threat_management`, 531 input / 197 output / 728 total tokens. An earlier runner invocation stopped at local configuration validation and made no provider call.
 
 ## Required eval mapping
 

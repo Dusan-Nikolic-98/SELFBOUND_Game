@@ -48,7 +48,7 @@ The game also calls `POST http://127.0.0.1:3001/api/ai/coach` after the player r
 - Backend reads `HOST` (default `127.0.0.1`) and `PORT` (default `3001`).
 - `scripts/serve.mjs` reads `HOST` (default `127.0.0.1`) and `PORT` (default `4173`) for the frontend server.
 - The combined launcher passes its environment to both processes. Setting a single `PORT` for `npm run dev` overrides both server ports and can cause a bind conflict; use separate processes if distinct overrides are needed.
-- `AI_COACH_PROVIDER` defaults to `fake`; Gemini mode also requires backend-only `GEMINI_API_KEY` and accepts `GEMINI_MODEL` only as `gemini-3.5-flash-lite`.
+- `AI_COACH_PROVIDER` defaults to `fake`; Gemini mode also requires backend-only `GEMINI_API_KEY` and accepts `GEMINI_MODEL` only as `gemini-3.1-flash-lite`. Production Gemini uses SDK `models.generateContent` with a 15-second total operation deadline and at most two HTTP attempts.
 - `.env.example` contains placeholders only. To load a root `.env` for the backend use `npm run build:backend` followed by `node --env-file=.env backend/dist/server.js`. The same root file is loaded by the opt-in `npm run test:ai:live` runner when it exists. `npm test` stays offline.
 
 Only document scripts and variables verified in the repository. Report a command that could not run instead of treating it as passed.
