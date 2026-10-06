@@ -18,7 +18,7 @@
     "typecheck": "npm run typecheck:frontend && npm run typecheck:backend",
     "typecheck:frontend": "tsc -p tsconfig.frontend.json --noEmit",
     "typecheck:backend": "tsc -p tsconfig.backend.json --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js dist-tests/tests/gameplay.test.js dist-tests/tests/ai-coach.test.js dist-tests/tests/ai-coach-backend.test.js dist-tests/tests/ai-coach-gemini.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test dist-tests/tests/logic.test.js dist-tests/tests/gameplay.test.js dist-tests/tests/ai-coach.test.js dist-tests/tests/ai-coach-backend.test.js dist-tests/tests/ai-coach-gemini.test.js dist-tests/tests/training-plan.test.js dist-tests/tests/training-plan-backend.test.js dist-tests/tests/training-plan-gemini.test.js"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",

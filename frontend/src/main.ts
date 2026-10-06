@@ -3,6 +3,8 @@ import { createInputState } from "./input.js";
 import { getCoreLevel } from "./level.js";
 import { getSafeGameConfig, validateGameConfig } from "./validation.js";
 import { AiCoachClient, AI_COACH_UNAVAILABLE_MESSAGE } from "./ai-coach-client.js";
+import { TrainingPlanClient, TRAINING_PLAN_UNAVAILABLE_MESSAGE } from "./training-plan-client.js";
+import { TrainingPlanSession } from "./training-plan-session.js";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#game-canvas");
 const resetButtonElement = document.querySelector<HTMLButtonElement>("#reset-level");
@@ -19,8 +21,19 @@ const coachSummaryCandidate = document.querySelector<HTMLElement>("#coach-summar
 const coachPrimaryCandidate = document.querySelector<HTMLElement>("#coach-primary");
 const coachSecondaryCandidate = document.querySelector<HTMLElement>("#coach-secondary");
 const coachGoalCandidate = document.querySelector<HTMLElement>("#coach-goal");
+const trainingPlanButtonCandidate = document.querySelector<HTMLButtonElement>("#training-plan-button");
+const trainingPlanAvailabilityCandidate = document.querySelector<HTMLElement>("#training-plan-availability");
+const trainingPlanPanelCandidate = document.querySelector<HTMLElement>("#training-plan-panel");
+const trainingPlanStatusCandidate = document.querySelector<HTMLElement>("#training-plan-status");
+const trainingPlanResultCandidate = document.querySelector<HTMLElement>("#training-plan-result");
+const trainingPlanSummaryCandidate = document.querySelector<HTMLElement>("#training-plan-summary");
+const trainingPlanFocusCandidate = document.querySelector<HTMLElement>("#training-plan-focus");
+const trainingPlanGoalCandidate = document.querySelector<HTMLElement>("#training-plan-goal");
+const trainingPlanAssessmentCandidate = document.querySelector<HTMLElement>("#training-plan-assessment");
+const trainingPlanEvidenceCandidate = document.querySelector<HTMLElement>("#training-plan-evidence");
+const trainingPlanConfidenceCandidate = document.querySelector<HTMLElement>("#training-plan-confidence");
 
-if (!canvasElement || !resetButtonElement || !livesElementCandidate || !progressElementCandidate || !stateElementCandidate || !messageElementCandidate || !coachButtonCandidate || !coachAvailabilityCandidate || !coachPanelCandidate || !coachStatusCandidate || !coachAdviceCandidate || !coachSummaryCandidate || !coachPrimaryCandidate || !coachSecondaryCandidate || !coachGoalCandidate) {
+if (!canvasElement || !resetButtonElement || !livesElementCandidate || !progressElementCandidate || !stateElementCandidate || !messageElementCandidate || !coachButtonCandidate || !coachAvailabilityCandidate || !coachPanelCandidate || !coachStatusCandidate || !coachAdviceCandidate || !coachSummaryCandidate || !coachPrimaryCandidate || !coachSecondaryCandidate || !coachGoalCandidate || !trainingPlanButtonCandidate || !trainingPlanAvailabilityCandidate || !trainingPlanPanelCandidate || !trainingPlanStatusCandidate || !trainingPlanResultCandidate || !trainingPlanSummaryCandidate || !trainingPlanFocusCandidate || !trainingPlanGoalCandidate || !trainingPlanAssessmentCandidate || !trainingPlanEvidenceCandidate || !trainingPlanConfidenceCandidate) {
   throw new Error("SELFBOUND could not find its required HTML elements.");
 }
 
@@ -39,6 +52,17 @@ const coachSummary = coachSummaryCandidate;
 const coachPrimary = coachPrimaryCandidate;
 const coachSecondary = coachSecondaryCandidate;
 const coachGoal = coachGoalCandidate;
+const trainingPlanButton = trainingPlanButtonCandidate;
+const trainingPlanAvailability = trainingPlanAvailabilityCandidate;
+const trainingPlanPanel = trainingPlanPanelCandidate;
+const trainingPlanStatus = trainingPlanStatusCandidate;
+const trainingPlanResult = trainingPlanResultCandidate;
+const trainingPlanSummary = trainingPlanSummaryCandidate;
+const trainingPlanFocus = trainingPlanFocusCandidate;
+const trainingPlanGoal = trainingPlanGoalCandidate;
+const trainingPlanAssessment = trainingPlanAssessmentCandidate;
+const trainingPlanEvidence = trainingPlanEvidenceCandidate;
+const trainingPlanConfidence = trainingPlanConfidenceCandidate;
 
 const context = canvas.getContext("2d");
 if (!context) throw new Error("SELFBOUND could not create a 2D canvas context.");
@@ -50,6 +74,8 @@ const configValidation = validateGameConfig(configCandidate);
 const config = getSafeGameConfig(configValidation.valid ? configValidation.value : undefined);
 const game = new Game(config, getCoreLevel(), { width: canvas.width, height: canvas.height }, input);
 const coachClient = new AiCoachClient();
+const trainingPlanClient = new TrainingPlanClient();
+const trainingPlanSession = new TrainingPlanSession();
 
 function setKey(event: KeyboardEvent, isDown: boolean): void {
   const key = event.key.toLowerCase();
@@ -92,6 +118,16 @@ function updateCoachControls(): void {
   coachAvailability.hidden = hasCompletedRun;
 }
 
+function updateTrainingPlanControls(): void {
+  trainingPlanButton.disabled = !trainingPlanSession.canGenerate || trainingPlanClient.isPending;
+  trainingPlanAvailability.hidden = trainingPlanSession.canGenerate;
+  if (!trainingPlanSession.canGenerate) {
+    trainingPlanAvailability.textContent = trainingPlanSession.previousPlan
+      ? "Complete another run before requesting another plan."
+      : "Complete a run before requesting a training plan.";
+  }
+}
+
 coachButton.addEventListener("click", async () => {
   const request = game.coachHistory.createRequestSnapshot();
   if (!request || coachClient.isPending) return;
@@ -116,8 +152,36 @@ coachButton.addEventListener("click", async () => {
   }
 });
 
+trainingPlanButton.addEventListener("click", async () => {
+  const request = trainingPlanSession.createRequestSnapshot();
+  if (!request || trainingPlanClient.isPending) return;
+  trainingPlanPanel.hidden = false;
+  trainingPlanStatus.textContent = "Preparing a focused plan from completed runs…";
+  updateTrainingPlanControls();
+  try {
+    const response = await trainingPlanClient.request(request);
+    if (!trainingPlanSession.recordSuccess(response, request)) throw new Error("Training Plan response failed session validation.");
+    trainingPlanSummary.textContent = response.plan.summary;
+    trainingPlanFocus.textContent = `Primary focus: ${response.plan.primaryFocus.replace(/_/g, " ")}`;
+    trainingPlanGoal.textContent = `Next-run practice goal: ${response.plan.practiceGoal}`;
+    trainingPlanAssessment.textContent = `Previous plan: ${response.plan.previousAssessment.replace(/_/g, " ")}`;
+    trainingPlanConfidence.textContent = `Confidence: ${response.plan.confidence}`;
+    trainingPlanEvidence.textContent = response.plan.evidence.map((item) => {
+      const sequences = item.runSequences.join(", ");
+      return `${item.source.replace(/_/g, " ")} — ${item.metric.replace(/_/g, " ")}; runs ${sequences}; ${item.undesirable}/${item.opportunities} undesirable opportunities`;
+    }).join(". ");
+    trainingPlanResult.hidden = false;
+    trainingPlanStatus.textContent = "Training plan ready for your next run.";
+  } catch {
+    trainingPlanStatus.textContent = TRAINING_PLAN_UNAVAILABLE_MESSAGE;
+  } finally {
+    updateTrainingPlanControls();
+  }
+});
+
 function updateUi(): void {
   updateCoachControls();
+  updateTrainingPlanControls();
   livesElement.textContent = `Lives: ${game.lives}`;
   progressElement.textContent = `Captures: ${game.capturedCount} / ${game.level.requiredSequence.length}`;
   if (game.status === "won") {
@@ -145,6 +209,8 @@ function frame(time: number): void {
   const deltaSeconds = (time - previousTime) / 1000;
   previousTime = time;
   game.update(deltaSeconds);
+  const completedRuns = game.coachHistory.completedRuns;
+  trainingPlanSession.observeGameStatus(game.status, completedRuns[completedRuns.length - 1]);
   game.render(renderContext);
   updateUi();
   requestAnimationFrame(frame);

@@ -104,7 +104,9 @@ canvas {
 }
 
 #coach-availability,
-#coach-status { color: #a9b6d0; }
+#coach-status,
+#training-plan-availability,
+#training-plan-status { color: #a9b6d0; }
 
 .coach-panel {
   margin-top: 14px;
@@ -117,6 +119,16 @@ canvas {
 
 .coach-panel h2 { margin: 0 0 8px; font-size: 1.05rem; }
 .coach-panel p { margin: 7px 0; line-height: 1.45; }
+.training-plan-panel {
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px solid #49638e;
+  border-radius: 8px;
+  background: #11192bcc;
+  color: #e9f1ff;
+}
+.training-plan-panel h2 { margin: 0 0 8px; font-size: 1.05rem; }
+.training-plan-panel p { margin: 7px 0; line-height: 1.45; }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
 
 button {
@@ -131,6 +143,7 @@ button {
 
 button:hover,
 button:focus-visible { background: #2c527e; }
+button:focus-visible { outline: 3px solid #f4f7ff; outline-offset: 2px; }
 
 @media (max-width: 700px) {
   .game-shell { padding: 12px; }

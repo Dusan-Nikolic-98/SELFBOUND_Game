@@ -1,6 +1,6 @@
 # SELFBOUND
 
-SELFBOUND is a retro-inspired 2D side-scrolling browser game built with TypeScript, HTML Canvas and CSS. The browser game remains the owner of all gameplay state and rules. Its independent TypeScript backend provides a health endpoint and a read-only AI Coach endpoint. AI Coach defaults to a deterministic fake provider; an explicitly configured backend can use Gemini Developer API.
+SELFBOUND is a retro-inspired 2D side-scrolling browser game built with TypeScript, HTML Canvas and CSS. The browser game remains the owner of all gameplay state and rules. Its independent TypeScript backend provides a health endpoint, the W04 AI Coach endpoint, and the separate W05 Training Plan endpoint. Both features default to deterministic fake providers and can use Gemini Developer API only when independently configured.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ The frontend is served at `http://127.0.0.1:4173`; the backend listens at `http:
 npm run dev
 ```
 
-For live Gemini mode, copy the example environment file to a local `.env` file in the repository root and configure the required backend variables:
+For optional Gemini mode, copy the example environment file to a local `.env` file in the repository root and configure the backend variables for the feature you want to use:
 
 ```sh
 cp .env.example .env
@@ -48,11 +48,11 @@ Check the backend health endpoint:
 curl http://127.0.0.1:3001/api/health
 ```
 
-It returns HTTP 200 and `{"ok":true,"service":"selfbound-backend"}`. The AI Coach flow uses `POST http://127.0.0.1:3001/api/ai/coach` with completed-run summaries; fake mode returns deterministic advice and explicitly configured Gemini mode returns validated advice. Start both frontend and backend for Coach requests; gameplay remains playable if the backend is unavailable. Completed history lasts only for the current page session.
+It returns HTTP 200 and `{"ok":true,"service":"selfbound-backend"}`. W04 AI Coach uses `POST http://127.0.0.1:3001/api/ai/coach` with completed-run summaries. W05 Training Plan uses `POST http://127.0.0.1:3001/api/training-plan` with one to three validated completed summaries wrapped in page-session sequence numbers and, after a prior success, its validated plan and aggregate baseline. Training Plan runs only after the player clicks its button. Both fake paths are deterministic and offline; each Gemini path requires its own explicit backend setting. Start both frontend and backend for either feature; gameplay remains playable if the backend is unavailable. Completed history and the latest valid Training Plan state remain in page memory only and clear on reload. The backend stores no player session or history.
 
-The default provider is `fake`, so normal development and automated tests need no Gemini key. Backend configuration uses `AI_COACH_PROVIDER`, `GEMINI_API_KEY`, and `GEMINI_MODEL`; the key is read only by the backend. Gemini mode keeps `gemini-3.1-flash-lite` as primary and uses one shared 15-second deadline with at most three generation calls. It can make one transient retry with bounded exponential backoff, optionally use an allowlisted fallback, or make one same-model output repair. `GEMINI_MODEL_CHAIN=gemini-3.1-flash-lite,gemini-3.5-flash-lite` opts in to the candidate fallback; the candidate has not been live-verified against the full Coach contract. Copy `.env.example` to the ignored root `.env` and configure Gemini there only when you want a live request. To load that file for the backend, run `npm run build:backend` followed by `node --env-file=.env backend/dist/server.js`. Alternatively, set the variables in the backend process environment before `npm run dev:backend`. Do not use a frontend-prefixed environment variable for the key.
+The default provider is `fake`, so normal development and automated tests need no Gemini key. W04 AI Coach uses `AI_COACH_PROVIDER`, `GEMINI_API_KEY`, and `GEMINI_MODEL`. W05 Training Plan uses the independent `TRAINING_PLAN_PROVIDER`, `TRAINING_PLAN_GEMINI_API_KEY`, and `TRAINING_PLAN_GEMINI_MODEL` settings; configuring one feature does not select Gemini for the other. W05's default Gemini model is `gemini-3.1-flash-lite`. Its orchestrator allows at most three model steps, two tool calls, four provider attempts, one transient retry per step, a 15-second per-attempt timeout, and a 45-second run deadline. W05 Core Gemini integration is covered only by offline SDK doubles; no live Training Plan Gemini request was made. Copy `.env.example` to the ignored root `.env` and configure the appropriate feature there only when you intentionally want a live request. To load that file for the backend, run `npm run build:backend` followed by `node --env-file=.env backend/dist/server.js`. Alternatively, set the variables in the backend process environment before `npm run dev:backend`. Do not use a frontend-prefixed environment variable for either key.
 
-An explicit one-request live validation is available with `npm run test:ai:live`. It loads the root `.env` when present, otherwise uses inherited backend environment variables; if Gemini mode and a non-empty key are unavailable it reports that validation was not performed. It prints only sanitized result/usage metadata and runs the real Coach contract against the primary model. To capability-test the candidate through the same full flow, set `GEMINI_DIAGNOSTIC_MODEL=gemini-3.5-flash-lite` for that command (PowerShell: `$env:GEMINI_DIAGNOSTIC_MODEL='gemini-3.5-flash-lite'; npm run test:ai:live`). Run it only when intentionally performing a live check after offline checks. `npm test` never calls Gemini.
+An explicit one-request live validation is available with `npm run test:ai:live` for W04 AI Coach. It loads the root `.env` when present, otherwise uses inherited backend environment variables; if Gemini mode and a non-empty key are unavailable it reports that validation was not performed. It prints only sanitized result/usage metadata and runs the real Coach contract against the primary model. To capability-test the candidate through the same full flow, set `GEMINI_DIAGNOSTIC_MODEL=gemini-3.5-flash-lite` for that command (PowerShell: `$env:GEMINI_DIAGNOSTIC_MODEL='gemini-3.5-flash-lite'; npm run test:ai:live`). Run it only when intentionally performing a live Coach check after offline checks. W05 is not covered by this live command. `npm test` runs offline W04/W05 suites and W05 Gemini SDK doubles; it never calls Gemini.
 
 ## Build and checks
 
@@ -68,13 +68,13 @@ node scripts/check-reachability.mjs
 ## Architecture
 
 ```text
-frontend/       Browser HTML, CSS and all game-owned TypeScript
-backend/src/    Standalone TypeScript HTTP service
+frontend/       Browser HTML, CSS and game, AI Coach, and Training Plan TypeScript
+backend/src/    Standalone TypeScript health, AI Coach, and Training Plan HTTP service
 scripts/        Static frontend server, combined dev launcher and level check
-tests/          Existing gameplay and pure-logic tests
-docs/           Week 3 specification and project evidence
+tests/          Gameplay, pure-logic, W04 AI Coach, and W05 Training Plan tests
+docs/           Game specification, feature evaluations, and project evidence
 ```
 
-The Week 3 gameplay specification remains in [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md). It records the original no-backend scope of that milestone. The AI Coach contract and implementation plan are in [`specs/001-ai-coach/`](specs/001-ai-coach/). Current local development commands and architecture are documented here and in [`docs/CONTEXT_MANIFEST.md`](docs/CONTEXT_MANIFEST.md).
+The Week 3 gameplay specification remains in [`docs/GAME_SPEC.md`](docs/GAME_SPEC.md). It records the original no-backend scope of that milestone. W04 AI Coach artifacts are in [`specs/001-ai-coach/`](specs/001-ai-coach/); W05 Training Planner artifacts are in [`specs/002-agentic-training-planner/`](specs/002-agentic-training-planner/). Current local development commands and architecture are documented here and in [`docs/CONTEXT_MANIFEST.md`](docs/CONTEXT_MANIFEST.md).
 
-Local `.env` files are ignored by git. Do not put provider secrets in frontend code or frontend environment variables. The fake provider needs no key or external network access; Gemini use is opt-in through backend configuration.
+Local `.env` files are ignored by git. Do not put provider secrets in frontend code or frontend environment variables. Both fake providers need no key or external network access; Gemini use is opt-in through the separate W04 and W05 backend configuration.

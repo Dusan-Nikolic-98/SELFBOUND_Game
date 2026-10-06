@@ -238,3 +238,22 @@ The 6,420 ms viability result provided 8,580 ms of observed headroom under the s
 | Fallback capability | `gemini-3.5-flash-lite` is candidate-only; full Coach live validation has not been performed |
 
 This addendum records deterministic fake-client policy tests, not live provider behavior. The opt-in real-contract diagnostic command is `npm run test:ai:live`; to test the fallback model explicitly set `GEMINI_DIAGNOSTIC_MODEL=gemini-3.5-flash-lite` for that invocation.
+
+### W05 Training Planner implementation (2026-10-06)
+
+| Check | Actual result |
+|---|---|
+| Contract and session matrix | PASS: independent frontend/backend validators, bounded three-run page-session ledger, exact-once terminal observation, validated prior-plan baseline, and unchanged-history gating are covered by offline tests. |
+| Evaluator and tools | PASS: normalized evidence and deterministic comparisons cover all five focus metrics, opportunity minima, unavailable bounce denominators, no-opportunity handling, exact rational comparisons, tool allowlisting, argument/result validation, and repeated actions. |
+| Orchestration | PASS: first and later plans, evidence grounding, malformed proposal/final refusal, 3-step and 2-tool bounds, four global provider attempts, transient retry, 15-second call cap, 45-second run deadline, cancellation, and late-result discard are covered by scripted offline providers. |
+| Route and UI client | PASS: `/api/training-plan` validates bounded streamed input before provider access, returns safe envelopes, gates unchanged history with zero provider calls, and handles disconnects. Client/session integration and separate UI wiring are covered by tests and build. |
+| W04 regression | PASS: the complete offline suite retains the existing logic, gameplay, AI Coach route/client, and Gemini adapter suites; W04 request/response contracts and Gemini modules were not changed. |
+| `npm run typecheck` | PASS: frontend and backend TypeScript checks. |
+| `npm test` | PASS: 98 tests, 98 passed, 0 failed; tests use fake providers and offline Gemini SDK transport doubles. |
+| `npm run build` | PASS: frontend and backend builds. |
+| `node scripts/check-reachability.mjs` | PASS after the build: all four Core targets capturable; `RESULT: PASS - every target is capturable`. Node emitted the existing module-type warning. |
+| `git diff --check` | PASS after the documentation and task-status edits; only Git's existing LF-to-CRLF conversion notices appeared. |
+| Live Gemini / environment | No W05 live Gemini request was made; the real `.env` file was not inspected. `.env.example` contains an empty W05 key placeholder. |
+| Manual UI evaluation | Not performed in an interactive browser; accessible markup/states, frontend compilation, client/session tests, and local HTTP integration tests passed. |
+
+This feature adds no saved history or gameplay mutation. Its latest validated plan and sequence baseline live only in the current page session. No W03 gameplay defect was found or changed, so `EVIDENCE_003.md` remains unchanged.
