@@ -254,6 +254,18 @@ test("fake provider completes first and later plans and model inputs contain onl
   assert.equal(later.result?.plan.previousAssessment, "improved");
 });
 
+test("step limit stops after three model steps without a fourth provider call", async () => {
+  const fake = new FakeTrainingPlanProvider("step_limit");
+  const result = await new TrainingPlanOrchestrator({ logger: () => undefined, maxToolCallsForTest: 3 })
+    .run(req([entry(1), entry(2), entry(3)]), fake);
+
+  assert.equal(result.terminal, "step_limit");
+  assert.equal(result.counters.agentSteps, 3);
+  assert.equal(result.counters.toolCalls, 2);
+  assert.equal(result.counters.providerAttempts, 3);
+  assert.equal(fake.callCount, 3);
+});
+
 test("unknown tools, invalid arguments, malformed proposals, and malformed final evidence never succeed", async () => {
   const orchestrator = new TrainingPlanOrchestrator({ logger: () => undefined });
   for (const [scenario, terminal] of [["unknown_tool", "unknown_tool"], ["invalid_tool_arguments", "invalid_tool_arguments"], ["malformed_proposal", "invalid_model_proposal"]] as const) {

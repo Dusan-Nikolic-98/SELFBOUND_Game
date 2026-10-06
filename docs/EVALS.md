@@ -256,4 +256,19 @@ This addendum records deterministic fake-client policy tests, not live provider 
 | Live Gemini / environment | No W05 live Gemini request was made; the real `.env` file was not inspected. `.env.example` contains an empty W05 key placeholder. |
 | Manual UI evaluation | Not performed in an interactive browser; accessible markup/states, frontend compilation, client/session tests, and local HTTP integration tests passed. |
 
+### W05 final submission-preparation verification (2026-10-06)
+
+| Check | Actual result |
+|---|---|
+| W05-E12 maximum-step scenario | PASS offline: scripted provider reached `step_limit` after 3 agent steps, 2 dispatched tools, and 3 provider attempts; no fourth provider call. The test-only tool limit isolates this terminal classification; the production 2-tool default remains unchanged. |
+| `npm run typecheck` | PASS: frontend and backend TypeScript checks. |
+| `npm test` | PASS: 99 tests, 99 passed, 0 failed. Fake/scripted-provider tests and Gemini SDK-double tests are offline; W04 suites remain included. |
+| `npm run build` | PASS: frontend and backend builds. |
+| `node scripts/check-reachability.mjs` | PASS: all four Core targets capturable; `RESULT: PASS - every target is capturable`. Existing Node module-type warning appeared for `frontend/dist/game.js`. |
+| `git diff --check` | PASS: exit code 0; Git printed working-copy LF-to-CRLF notices. |
+| Real W05 Gemini Agent Run | PASS: one logical run through `POST /api/training-plan`, model `gemini-3.1-flash-lite`, `goal_completed`, 2 model steps, 1 `get_recent_run_evidence` call, 2 provider attempts, 0 retries, 13,444 ms orchestrator elapsed, HTTP 200/13,624 ms round trip, validated focus `range_management`. The adapter returned no token counts. |
+| Secret handling | The documented `node --env-file=.env` loader supplied backend configuration. No secret or environment value was printed, manually inspected, or included in the evidence. |
+
 This feature adds no saved history or gameplay mutation. Its latest validated plan and sequence baseline live only in the current page session. No W03 gameplay defect was found or changed, so `EVIDENCE_003.md` remains unchanged.
+
+The focused W05 scenario matrix, including exact test sources and any unverified paths, is in [`AGENT_EVALS.md`](AGENT_EVALS.md). W05 implementation and submission evidence is in [`EVIDENCE_W05.md`](EVIDENCE_W05.md).

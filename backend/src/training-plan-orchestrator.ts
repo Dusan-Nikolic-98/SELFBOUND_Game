@@ -51,6 +51,8 @@ export type TrainingPlanOrchestratorOptions = {
   runIdFactory?: () => string;
   logger?: (record: TrainingPlanLogRecord) => void;
   toolRegistryFactory?: (request: TrainingPlanRequest) => TrainingPlanToolRegistry;
+  /** Test seam to isolate the step-limit terminal from the stricter production tool budget. */
+  maxToolCallsForTest?: number;
 };
 
 let nextRunId = 1;
@@ -103,6 +105,7 @@ export class TrainingPlanOrchestrator {
   private readonly makeRunId: () => string;
   private readonly logger: (record: TrainingPlanLogRecord) => void;
   private readonly toolRegistryFactory: (request: TrainingPlanRequest) => TrainingPlanToolRegistry;
+  private readonly maxToolCalls: number;
 
   constructor(options: TrainingPlanOrchestratorOptions = {}) {
     this.now = options.now ?? (() => performance.now());
@@ -113,6 +116,7 @@ export class TrainingPlanOrchestrator {
     this.makeRunId = options.runIdFactory ?? (() => `training-plan-${nextRunId++}`);
     this.logger = options.logger ?? ((record) => console.info(JSON.stringify(record)));
     this.toolRegistryFactory = options.toolRegistryFactory ?? ((request) => new TrainingPlanToolRegistry(request));
+    this.maxToolCalls = options.maxToolCallsForTest ?? MAX_TOOL_CALLS;
   }
 
   async run(request: TrainingPlanRequest, provider: TrainingPlanModelStepProvider, parentSignal?: AbortSignal): Promise<TrainingPlanRunResult> {
@@ -211,7 +215,7 @@ export class TrainingPlanOrchestrator {
         const tool = proposal.tool as TrainingPlanToolName;
         if (typeof proposal.arguments !== "object" || proposal.arguments === null || Array.isArray(proposal.arguments)) return finish("invalid_tool_arguments");
         if (!validateToolArguments(tool, proposal.arguments, request.runs.length)) return finish("invalid_tool_arguments");
-        if (counters.toolCalls >= MAX_TOOL_CALLS) return finish("tool_call_limit");
+        if (counters.toolCalls >= this.maxToolCalls) return finish("tool_call_limit");
         if (this.now() >= deadline) return finish("deadline");
         const identity = registry.actionIdentity(tool, proposal.arguments);
         if (attemptedActions.has(identity)) return finish("repeated_action");
