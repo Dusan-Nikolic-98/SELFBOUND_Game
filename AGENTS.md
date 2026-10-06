@@ -4,7 +4,7 @@ Persistent instructions for any coding agent working in this repository. Read th
 
 ## Project
 
-SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework) with an independent TypeScript backend. The backend exposes a health endpoint and the scoped AI Coach endpoint, which defaults to a deterministic fake provider and can use Gemini when explicitly configured. The project was built for the Retro AI Engineering Challenge, Sessions 003-004.
+SELFBOUND is a small TypeScript browser game (HTML Canvas, no framework) with an independent TypeScript backend. The backend exposes health, the W04 AI Coach endpoint, and the separate W05 Training Plan endpoint. W04 and W05 default to independent deterministic fake providers and can use Gemini only through their separately configured backend settings. The project was built for the Retro AI Engineering Challenge, Sessions 003-005.
 
 ## Authority order
 
@@ -30,11 +30,11 @@ node scripts/check-reachability.mjs      # after npm run build:frontend
 
 - TypeScript for logic and the minimal HTTP backend, Canvas for rendering, HTML/CSS for UI. No game or physics engine, no framework, no database, no multiplayer, no procedural generation.
 - Browser gameplay belongs to `frontend/src/`; server code belongs to `backend/src/`. Do not import modules across this boundary.
-- Backend provides `GET /api/health` and `POST /api/ai/coach`; fake mode is the default, and optional Gemini calls use backend-only configuration and credentials.
+- Backend provides `GET /api/health`, `POST /api/ai/coach`, and `POST /api/training-plan`. W04 and W05 use separate fake-default provider configuration and backend-only credentials.
 - Collision: axis-aligned rectangles for platforms, circles for player, enemies and projectiles.
 - Level geometry is hand-authored structured data in `frontend/src/level.ts`. Never derive collision from an image.
 - Runtime validation of `GameConfig` and `LevelData` must stay in place. TypeScript types alone are not enough.
-- Gemini calls are available only through explicit backend configuration. There is no tool calling or autonomous agent loop; AI Coach remains user-triggered and read-only.
+- Gemini calls are available only through explicit backend configuration. W04 AI Coach remains user-triggered, read-only, and non-agentic. W05 Training Planner is a separate user-triggered, bounded, application-controlled workflow with exactly two deterministic read-only application tools; it is not an autonomous agent.
 - Do not add audio, save systems, upgrades, inventory, extra abilities, procedural levels or extra levels beyond Core.
 - Never commit API keys, credentials or secrets.
 
@@ -53,15 +53,16 @@ node scripts/check-reachability.mjs      # after npm run build:frontend
 
 - `tests/logic.test.ts`: pure logic (validation, camera clamp, projectile range and bounce, collision helpers).
 - `tests/gameplay.test.ts`: game loop rules on a small synthetic level (capture teleport, non-target shot, green threat, life loss and reset, patrol bounds, blocked shot, exit condition, full reset).
-- `tests/ai-coach.test.ts`, `tests/ai-coach-backend.test.ts`, and `tests/ai-coach-gemini.test.ts`: bounded telemetry/lifecycle, frontend contract/client, fake-provider route coverage, and offline Gemini adapter/reliability coverage.
+- W04 tests: `tests/ai-coach.test.ts`, `tests/ai-coach-backend.test.ts`, and `tests/ai-coach-gemini.test.ts` cover bounded telemetry/lifecycle, the frontend contract/client, fake-provider routes, and offline Gemini adapter/reliability behavior.
+- W05 tests: `tests/training-plan.test.ts`, `tests/training-plan-backend.test.ts`, and `tests/training-plan-gemini.test.ts` cover contracts/session/tools/evaluation/orchestration, the separate route and fake provider, and offline Gemini SDK doubles.
 - Add a regression test with any bug fix. Gameplay tests should not depend on Core Level 1 coordinates; level tuning is covered by `check-reachability.mjs`.
 
 ## Repository layout
 
 ```text
 docs/        specification, prompts, context manifest, evals, evidence, AI usage log
-frontend/    index.html, styles.css and src/ browser game modules
-backend/     src/ health and fake AI Coach APIs
+frontend/    index.html, styles.css and src/ browser game, AI Coach, and Training Plan modules
+backend/     src/ health, AI Coach, and bounded Training Plan APIs
 scripts/     serve.mjs (frontend server), dev.mjs (combined launcher), level check
 tests/       Node suite for logic, gameplay, AI Coach telemetry and backend route
 ```

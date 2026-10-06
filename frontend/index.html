@@ -34,9 +34,23 @@
           <button id="reset-level" type="button">Reset Level</button>
           <button id="ai-coach" type="button" disabled>AI Coach</button>
           <span id="coach-availability">Complete a run before requesting coaching.</span>
+          <button id="training-plan-button" type="button" disabled>Training Plan</button>
+          <span id="training-plan-availability">Complete a run before requesting a training plan.</span>
         </div>
         <span>Press R to reset the level.</span>
       </footer>
+      <section id="training-plan-panel" class="training-plan-panel" aria-live="polite" aria-atomic="false" hidden>
+        <h2>Training Plan</h2>
+        <p id="training-plan-status" role="status"></p>
+        <div id="training-plan-result" hidden>
+          <p id="training-plan-summary"></p>
+          <p id="training-plan-focus"></p>
+          <p id="training-plan-goal"></p>
+          <p id="training-plan-assessment"></p>
+          <p id="training-plan-evidence"></p>
+          <p id="training-plan-confidence"></p>
+        </div>
+      </section>
       <section id="coach-panel" class="coach-panel" aria-live="polite" aria-atomic="true" hidden>
         <h2>AI Coach</h2>
         <p id="coach-status" role="status"></p>
