@@ -2,16 +2,16 @@
 
 ## 1. Osnovne informacije
 
-| Polje | Odgovor |
-| --- | --- |
-| Ime i prezime | Milena Paripović |
-| Adresa e-pošte | paripovicmilena@gmail.com |
-| Discord korisničko ime | Milena Paripovic |
-| Nedelja | Sesija 005 (W05 — Bounded Agentic Feature) |
-| Par / tim | Dušan Nikolić / tim9 |
-| Moj konkretan doprinos / uloga | Usmeravala sam rad prema zahtevu, proveravala ispunjenost W05 kriterijuma i pregledala implementaciju i predajne artefakte. Pregledala sam i ispravljala dokumentaciju/evidence i pomagala u finalnoj proveri kao reviewer u paru. |
-| Datum predaje | 06.10.2026. |
-| Reference na rad i dokaze | `specs/002-agentic-training-planner/`, `docs/AGENT_FLOW.md`, `docs/TOOL_CONTRACTS.md`, `docs/AGENT_EVALS.md`, `docs/EVIDENCE_W05.md`, `docs/EVALS.md`, `docs/AI_USAGE_LOG.md`, `frontend/src/training-plan-session.ts`, `backend/src/training-plan-orchestrator.ts`; javni repozitorijum: <https://github.com/Dusan-Nikolic-98/SELFBOUND_Game> |
+| Polje                          | Odgovor                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ime i prezime                  | Milena Paripović                                                                                                                                                                                                                                                                                                                               |
+| Adresa e-pošte                 | paripovicmilena@gmail.com                                                                                                                                                                                                                                                                                                                      |
+| Discord korisničko ime         | Milena Paripovic                                                                                                                                                                                                                                                                                                                               |
+| Nedelja                        | Sesija 005 (W05 — Bounded Agentic Feature)                                                                                                                                                                                                                                                                                                     |
+| Par / tim                      | Dušan Nikolić / tim9                                                                                                                                                                                                                                                                                                                           |
+| Moj konkretan doprinos / uloga | Usmeravala sam rad prema zahtevu, proveravala ispunjenost W05 kriterijuma i pregledala implementaciju i predajne artefakte. Pregledala sam i ispravljala dokumentaciju/evidence i pomagala u finalnoj proveri kao reviewer u paru.                                                                                                             |
+| Datum predaje                  | 06.10.2026.                                                                                                                                                                                                                                                                                                                                    |
+| Reference na rad i dokaze      | `specs/002-agentic-training-planner/`, `docs/AGENT_FLOW.md`, `docs/TOOL_CONTRACTS.md`, `docs/AGENT_EVALS.md`, `docs/EVIDENCE_W05.md`, `docs/EVALS.md`, `docs/AI_USAGE_LOG.md`, `frontend/src/training-plan-session.ts`, `backend/src/training-plan-orchestrator.ts`; javni repozitorijum: <https://github.com/Dusan-Nikolic-98/SELFBOUND_Game> |
 
 ## 2. Moj status
 
@@ -37,7 +37,7 @@ U radu para ChatGPT je korišćen za brainstorming, specifikaciju, review i prip
 
 ## 4. Sledeći korak
 
-Pripremiću završnu predaju W05 dokaza i kratku demo prezentaciju; korak je završen kada su materijali predati i bounded Training Plan tok može jasno da se demonstrira. Uspešan smoke iz ove provere ćemo koristiti kao evidence; nije planiran novi live poziv nakon uspeha.
+Pripremiću završnu predaju W05 dokaza i kratku demo prezentaciju.
 
 ## 5. Poverljiva napomena za tutora
 
