@@ -114,6 +114,8 @@ test("oversized request body and wrong content type do not invoke provider", asy
     assert.equal(tooLarge.status, 413);
     const wrongType = await post(baseUrl, JSON.stringify({ runs: [makeSummary()] }), "text/plain");
     assert.equal(wrongType.status, 400);
+    const jsonpType = await post(baseUrl, JSON.stringify({ runs: [makeSummary()] }), "application/jsonp");
+    assert.equal(jsonpType.status, 400);
     assert.equal(calls, 0);
   });
 });

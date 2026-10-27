@@ -269,6 +269,13 @@ This addendum records deterministic fake-client policy tests, not live provider 
 | Real W05 Gemini Agent Run | PASS: one logical run through `POST /api/training-plan`, model `gemini-3.1-flash-lite`, `goal_completed`, 2 model steps, 1 `get_recent_run_evidence` call, 2 provider attempts, 0 retries, 13,444 ms orchestrator elapsed, HTTP 200/13,624 ms round trip, validated focus `range_management`. The adapter returned no token counts. |
 | Secret handling | The documented `node --env-file=.env` loader supplied backend configuration. No secret or environment value was printed, manually inspected, or included in the evidence. |
 
-This feature adds no saved history or gameplay mutation. Its latest validated plan and sequence baseline live only in the current page session. No W03 gameplay defect was found or changed, so `EVIDENCE_003.md` remains unchanged.
+This feature adds no saved history or gameplay mutation. Its latest validated plan and sequence baseline live only in the current page session. No W03 gameplay defect was found or changed; the separate W08 W04 Content-Type boundary defect is recorded in `EVIDENCE_003.md`.
 
 The focused W05 scenario matrix, including exact test sources and any unverified paths, is in [`AGENT_EVALS.md`](AGENT_EVALS.md). W05 implementation and submission evidence is in [`EVIDENCE_W05.md`](EVIDENCE_W05.md).
+
+### W08 shared HTTP content-type regression (2026-10-27)
+
+| Check | Result |
+|---|---|
+| W04 `application/jsonp` | `tests/ai-coach-backend.test.ts`: rejected with 400 before provider invocation; ordinary JSON route coverage remains in the same suite. |
+| Scope | HTTP input-contract hardening only. No W03 gameplay rules or state changed; no W08 final evidence file was created in this implementation phase. |

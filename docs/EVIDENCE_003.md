@@ -313,3 +313,21 @@ References: [Interactions REST endpoint and generation schema](https://ai.google
 **Result:** PASS. `npm test`: 66 passed, 0 failed. `npm run typecheck`: frontend and backend passed. `npm run build`: frontend and backend passed. `git diff --check` passed (Git reported expected LF-to-CRLF conversion notices). Deterministic tests confirm no more than three GenerateContent calls, one repair only, no invalid-output model hopping, no fallback for auth/refusal/arbitrary 404, stable HTTP 503 safe failure, request cancellation propagation, and no prompt/request/output sentinels in telemetry.
 
 **Limitation:** this is offline policy/adapter evidence, not a latency distribution or live fallback capability result. `gemini-3.5-flash-lite` remains unverified for the complete Coach workload. Run the explicit capability diagnostic only when desired: `GEMINI_DIAGNOSTIC_MODEL=gemini-3.5-flash-lite` with `npm run test:ai:live` (PowerShell syntax is documented in `README.md`).
+
+## W08 shared HTTP content-type defect (2026-10-27)
+
+**Claim:** the W04 Coach route must accept only the `application/json` media type, optionally followed by parameters, before reading an AI request.
+
+**Signal:** the route used `startsWith("application/json")`, which also accepts `application/jsonp`; the W05 route already compares the parsed media type exactly.
+
+**Problem:** a non-JSONP-compatible endpoint accepted a content type outside its JSON contract, weakening the shared HTTP boundary.
+
+**Hypothesis:** prefix matching was chosen to tolerate parameters such as `charset=utf-8`, but the prefix also admits unrelated types.
+
+**Minimum change:** compare the trimmed, lowercased media type before `;` to exactly `application/json`; retain ordinary parameterized JSON requests and reject other types before provider execution.
+
+**Check:** `tests/ai-coach-backend.test.ts` submits `application/jsonp` and asserts HTTP 400 plus zero provider calls; the valid W04 route case remains covered in the same suite.
+
+**Result:** implemented in W08; the offline check result is recorded in `docs/AI_USAGE_LOG.md`.
+
+**Limitation:** strict media-type validation does not authenticate direct API callers or verify the truth of browser telemetry. No gameplay state or W03 rule changed.

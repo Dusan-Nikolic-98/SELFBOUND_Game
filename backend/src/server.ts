@@ -1,4 +1,5 @@
 import { createServer as createHttpServer, IncomingMessage, Server, ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
 import {
   AiCoachProvider,
   FakeAiCoachProvider,
@@ -16,42 +17,85 @@ import { parseTrainingPlanRuntimeConfig, TrainingPlanConfigurationError } from "
 import { TrainingPlanOrchestrator } from "./training-plan-orchestrator.js";
 import { TrainingPlanModelStepProvider } from "./training-plan-provider.js";
 import { createTrainingPlanRuntime } from "./training-plan-runtime.js";
+import { AiRequestLimits } from "./request-limits.js";
 
 const allowedOrigins = new Set([
   "http://127.0.0.1:4173",
   "http://localhost:4173",
 ]);
+export const BODY_IDLE_TIMEOUT_MS = 10_000;
+
+function setSecurityHeaders(response: ServerResponse): void {
+  response.setHeader("X-Content-Type-Options", "nosniff");
+  response.setHeader("Referrer-Policy", "no-referrer");
+  response.setHeader("X-Frame-Options", "DENY");
+  response.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+}
 
 function sendJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   response.end(JSON.stringify(body));
 }
 
-async function readJsonBody(request: IncomingMessage, maxBytes = MAX_COACH_REQUEST_BYTES, strictUtf8 = false): Promise<{ value?: unknown; tooLarge: boolean; malformed: boolean }> {
-  const chunks: Buffer[] = [];
-  let receivedBytes = 0;
-  let tooLarge = false;
-  try {
-    for await (const chunk of request) {
+async function readJsonBody(request: IncomingMessage, maxBytes = MAX_COACH_REQUEST_BYTES, strictUtf8 = false, idleTimeoutMs = BODY_IDLE_TIMEOUT_MS): Promise<{ value?: unknown; tooLarge: boolean; malformed: boolean }> {
+  const lengthHeader = request.headers["content-length"];
+  if (lengthHeader !== undefined) {
+    const length = Number(lengthHeader);
+    if (!Number.isSafeInteger(length) || length < 0) return { tooLarge: false, malformed: true };
+    if (length > maxBytes) {
+      request.pause();
+      return { tooLarge: true, malformed: false };
+    }
+  }
+  return new Promise((resolve) => {
+    const chunks: Buffer[] = [];
+    let receivedBytes = 0;
+    let settled = false;
+    const cleanup = () => {
+      request.off("data", onData);
+      request.off("end", onEnd);
+      request.off("error", onError);
+      request.off("aborted", onAborted);
+      request.socket.setTimeout(0);
+    };
+    const finish = (result: { value?: unknown; tooLarge: boolean; malformed: boolean }) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+    const onData = (chunk: Buffer | string) => {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       receivedBytes += buffer.byteLength;
       if (receivedBytes > maxBytes) {
-        tooLarge = true;
-        continue;
+        request.pause();
+        finish({ tooLarge: true, malformed: false });
+        // Keep an error listener after abandoning the unread request body.
+        request.on("error", () => undefined);
+        return;
       }
       chunks.push(buffer);
-    }
-  } catch {
-    return { tooLarge, malformed: true };
-  }
-  if (tooLarge) return { tooLarge: true, malformed: false };
-  try {
-    const body = Buffer.concat(chunks);
-    const text = strictUtf8 ? new TextDecoder("utf-8", { fatal: true }).decode(body) : body.toString("utf8");
-    return { value: JSON.parse(text) as unknown, tooLarge: false, malformed: false };
-  } catch {
-    return { tooLarge: false, malformed: true };
-  }
+    };
+    const onEnd = () => {
+      try {
+        const body = Buffer.concat(chunks);
+        const text = strictUtf8 ? new TextDecoder("utf-8", { fatal: true }).decode(body) : body.toString("utf8");
+        finish({ value: JSON.parse(text) as unknown, tooLarge: false, malformed: false });
+      } catch { finish({ tooLarge: false, malformed: true }); }
+    };
+    const onError = () => finish({ tooLarge: false, malformed: true });
+    const onAborted = () => finish({ tooLarge: false, malformed: true });
+    const onIdleTimeout = () => {
+      request.pause();
+      request.destroy();
+      finish({ tooLarge: false, malformed: true });
+    };
+    request.on("data", onData);
+    request.once("end", onEnd);
+    request.once("error", onError);
+    request.once("aborted", onAborted);
+    request.socket.setTimeout(idleTimeoutMs, onIdleTimeout);
+  });
 }
 
 async function handleTrainingPlanRequest(
@@ -59,19 +103,26 @@ async function handleTrainingPlanRequest(
   response: ServerResponse,
   provider: TrainingPlanModelStepProvider,
   orchestrator: TrainingPlanOrchestrator,
+  limits: AiRequestLimits,
+  bodyIdleTimeoutMs: number,
 ): Promise<void> {
   const contentType = request.headers["content-type"]?.split(";")[0]?.trim().toLowerCase();
   if (contentType !== "application/json") {
-    request.resume();
+    request.pause();
+    response.shouldKeepAlive = false;
     sendJson(response, 400, { ok: false, error: "invalid_request" });
+    request.socket.end();
     return;
   }
-  const parsed = await readJsonBody(request, MAX_TRAINING_PLAN_REQUEST_BYTES, true);
+  const parsed = await readJsonBody(request, MAX_TRAINING_PLAN_REQUEST_BYTES, true, bodyIdleTimeoutMs);
   if (parsed.tooLarge) {
+    response.shouldKeepAlive = false;
     sendJson(response, 413, { ok: false, error: "invalid_request" });
+    request.socket.end();
     return;
   }
   if (parsed.malformed || !validateTrainingPlanRequest(parsed.value)) {
+    if (request.aborted || response.destroyed) return;
     sendJson(response, 400, { ok: false, error: "invalid_request" });
     return;
   }
@@ -79,6 +130,12 @@ async function handleTrainingPlanRequest(
   const previous = trainingRequest.previousPlan;
   if (previous && !trainingRequest.runs.some((run) => run.sequence > previous.baseline.maxSequence)) {
     sendJson(response, 409, { ok: false, error: "regeneration_not_eligible" });
+    return;
+  }
+
+  const permit = limits.tryAcquire();
+  if ("rejection" in permit) {
+    sendJson(response, 429, { ok: false, error: permit.rejection });
     return;
   }
 
@@ -97,24 +154,37 @@ async function handleTrainingPlanRequest(
   } catch {
     if (!controller.signal.aborted && !response.destroyed) sendJson(response, 503, { ok: false, error: "training_plan_unavailable" });
   } finally {
+    permit.release();
     request.off("aborted", cancelOnDisconnect);
     response.off("close", cancelOnDisconnect);
   }
 }
 
-async function handleCoachRequest(request: IncomingMessage, response: ServerResponse, provider: AiCoachProvider): Promise<void> {
-  if (!request.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
-    request.resume();
+async function handleCoachRequest(request: IncomingMessage, response: ServerResponse, provider: AiCoachProvider, limits: AiRequestLimits, bodyIdleTimeoutMs: number): Promise<void> {
+  const contentType = request.headers["content-type"]?.split(";")[0]?.trim().toLowerCase();
+  if (contentType !== "application/json") {
+    request.pause();
+    response.shouldKeepAlive = false;
     sendJson(response, 400, { ok: false, error: "invalid_request" });
+    request.socket.end();
     return;
   }
-  const parsed = await readJsonBody(request);
+  const parsed = await readJsonBody(request, MAX_COACH_REQUEST_BYTES, false, bodyIdleTimeoutMs);
   if (parsed.tooLarge) {
+    response.shouldKeepAlive = false;
     sendJson(response, 413, { ok: false, error: "invalid_request" });
+    request.socket.end();
     return;
   }
   if (parsed.malformed || !validateAiCoachRequest(parsed.value)) {
+    if (request.aborted || response.destroyed) return;
     sendJson(response, 400, { ok: false, error: "invalid_request" });
+    return;
+  }
+
+  const permit = limits.tryAcquire();
+  if ("rejection" in permit) {
+    sendJson(response, 429, { ok: false, error: permit.rejection });
     return;
   }
 
@@ -133,6 +203,7 @@ async function handleCoachRequest(request: IncomingMessage, response: ServerResp
   } catch {
     if (!controller.signal.aborted && !response.destroyed) sendJson(response, 503, { ok: false, error: "coach_unavailable" });
   } finally {
+    permit.release();
     request.off("aborted", cancelOnDisconnect);
     response.off("close", cancelOnDisconnect);
   }
@@ -142,8 +213,12 @@ export function createServer(
   provider: AiCoachProvider = new FakeAiCoachProvider(),
   trainingPlanProvider: TrainingPlanModelStepProvider = new FakeTrainingPlanProvider("first_plan_success"),
   trainingPlanOrchestrator: TrainingPlanOrchestrator = new TrainingPlanOrchestrator(),
+  options: { now?: () => number; bodyIdleTimeoutMs?: number } = {},
 ): Server {
+  const limits = new AiRequestLimits(options.now);
+  const bodyIdleTimeoutMs = options.bodyIdleTimeoutMs ?? BODY_IDLE_TIMEOUT_MS;
   return createHttpServer((request, response) => {
+    setSecurityHeaders(response);
     const origin = request.headers.origin;
     if (origin && allowedOrigins.has(origin)) {
       response.setHeader("Access-Control-Allow-Origin", origin);
@@ -162,11 +237,15 @@ export function createServer(
       return;
     }
     if (request.method === "POST" && request.url === "/api/ai/coach") {
-      void handleCoachRequest(request, response, provider);
+      void handleCoachRequest(request, response, provider, limits, bodyIdleTimeoutMs).catch(() => {
+        if (!response.destroyed && !response.writableEnded) sendJson(response, 400, { ok: false, error: "invalid_request" });
+      });
       return;
     }
     if (request.method === "POST" && request.url === "/api/training-plan") {
-      void handleTrainingPlanRequest(request, response, trainingPlanProvider, trainingPlanOrchestrator);
+      void handleTrainingPlanRequest(request, response, trainingPlanProvider, trainingPlanOrchestrator, limits, bodyIdleTimeoutMs).catch(() => {
+        if (!response.destroyed && !response.writableEnded) sendJson(response, 400, { ok: false, error: "invalid_request" });
+      });
       return;
     }
 
@@ -193,11 +272,12 @@ export function startServer(): Server {
   const trainingPlanRuntime = createTrainingPlanRuntime(parseTrainingPlanRuntimeConfig(process.env));
   const server = createServer(provider, trainingPlanRuntime.provider, trainingPlanRuntime.orchestrator);
   server.on("error", (error: NodeJS.ErrnoException) => {
-    console.error(`SELFBOUND backend failed to start: ${error.message}`);
+    const reasonCode = error.code === "EADDRINUSE" || error.code === "EACCES" ? error.code : "startup_failed";
+    console.error(JSON.stringify({ event: "backend_start", outcome: "failure", reasonCode, correlationId: randomUUID(), providerAttempts: 0, toolCalls: 0, durationMs: 0, status: 503 }));
     process.exitCode = 1;
   });
   server.listen(port, host, () => {
-    console.log(`SELFBOUND backend listening at http://${host}:${port}`);
+    console.log(JSON.stringify({ event: "backend_start", outcome: "success", reasonCode: "listening", correlationId: randomUUID(), providerAttempts: 0, toolCalls: 0, durationMs: 0, status: 200 }));
   });
   return server;
 }
@@ -206,7 +286,8 @@ if (require.main === module) {
   try {
     startServer();
   } catch (error) {
-    console.error(error instanceof BackendConfigurationError || error instanceof TrainingPlanConfigurationError ? error.message : "SELFBOUND backend failed to start.");
+    const reasonCode = error instanceof BackendConfigurationError || error instanceof TrainingPlanConfigurationError ? "configuration_invalid" : "startup_failed";
+    console.error(JSON.stringify({ event: "backend_start", outcome: "failure", reasonCode, correlationId: randomUUID(), providerAttempts: 0, toolCalls: 0, durationMs: 0, status: 503 }));
     process.exitCode = 1;
   }
 }

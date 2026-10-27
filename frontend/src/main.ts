@@ -5,6 +5,7 @@ import { getSafeGameConfig, validateGameConfig } from "./validation.js";
 import { AiCoachClient, AI_COACH_UNAVAILABLE_MESSAGE } from "./ai-coach-client.js";
 import { TrainingPlanClient, TRAINING_PLAN_UNAVAILABLE_MESSAGE } from "./training-plan-client.js";
 import { TrainingPlanSession } from "./training-plan-session.js";
+import { setPlainText } from "./plain-text.js";
 
 const canvasElement = document.querySelector<HTMLCanvasElement>("#game-canvas");
 const resetButtonElement = document.querySelector<HTMLButtonElement>("#reset-level");
@@ -137,11 +138,11 @@ coachButton.addEventListener("click", async () => {
   updateCoachControls();
   try {
     const advice = await coachClient.request(request);
-    coachSummary.textContent = advice.summary;
-    coachPrimary.textContent = `${advice.primaryCategory.replace(/_/g, " ")}: ${advice.primaryAdvice}`;
-    coachSecondary.textContent = advice.secondaryAdvice ?? "";
+    setPlainText(coachSummary, advice.summary);
+    setPlainText(coachPrimary, `${advice.primaryCategory.replace(/_/g, " ")}: ${advice.primaryAdvice}`);
+    setPlainText(coachSecondary, advice.secondaryAdvice ?? "");
     coachSecondary.hidden = !advice.secondaryAdvice;
-    coachGoal.textContent = `Next-run goal: ${advice.practiceGoal}`;
+    setPlainText(coachGoal, `Next-run goal: ${advice.practiceGoal}`);
     coachStatus.textContent = `Advice based on ${request.runs.length} completed ${request.runs.length === 1 ? "run" : "runs"}.`;
     coachAdvice.hidden = false;
   } catch {
@@ -161,15 +162,15 @@ trainingPlanButton.addEventListener("click", async () => {
   try {
     const response = await trainingPlanClient.request(request);
     if (!trainingPlanSession.recordSuccess(response, request)) throw new Error("Training Plan response failed session validation.");
-    trainingPlanSummary.textContent = response.plan.summary;
-    trainingPlanFocus.textContent = `Primary focus: ${response.plan.primaryFocus.replace(/_/g, " ")}`;
-    trainingPlanGoal.textContent = `Next-run practice goal: ${response.plan.practiceGoal}`;
-    trainingPlanAssessment.textContent = `Previous plan: ${response.plan.previousAssessment.replace(/_/g, " ")}`;
-    trainingPlanConfidence.textContent = `Confidence: ${response.plan.confidence}`;
-    trainingPlanEvidence.textContent = response.plan.evidence.map((item) => {
+    setPlainText(trainingPlanSummary, response.plan.summary);
+    setPlainText(trainingPlanFocus, `Primary focus: ${response.plan.primaryFocus.replace(/_/g, " ")}`);
+    setPlainText(trainingPlanGoal, `Next-run practice goal: ${response.plan.practiceGoal}`);
+    setPlainText(trainingPlanAssessment, `Previous plan: ${response.plan.previousAssessment.replace(/_/g, " ")}`);
+    setPlainText(trainingPlanConfidence, `Confidence: ${response.plan.confidence}`);
+    setPlainText(trainingPlanEvidence, response.plan.evidence.map((item) => {
       const sequences = item.runSequences.join(", ");
       return `${item.source.replace(/_/g, " ")} — ${item.metric.replace(/_/g, " ")}; runs ${sequences}; ${item.undesirable}/${item.opportunities} undesirable opportunities`;
-    }).join(". ");
+    }).join(". "));
     trainingPlanResult.hidden = false;
     trainingPlanStatus.textContent = "Training plan ready for your next run.";
   } catch {

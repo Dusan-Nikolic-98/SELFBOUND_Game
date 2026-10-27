@@ -1,4 +1,5 @@
 import type { GoogleGenAI as GoogleGenAIClient, HttpOptions } from "@google/genai" with { "resolution-mode": "import" };
+import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { AiCoachRequest, validateAiCoachAdvice, validateAiCoachRequest } from "./ai-coach-contract.js";
 import { GEMINI_ALLOWED_MODELS, GEMINI_MODEL_ID } from "./ai-coach-config.js";
@@ -58,6 +59,19 @@ export type GeminiUsageRecord = {
   attempt?: ProviderAttempt; failureCategory?: GeminiFailureCategory; failureClass?: AiFailureClass;
   inputTokens?: number; outputTokens?: number; totalTokens?: number;
 };
+export function toSafeAiCoachSecurityEvent(record: GeminiUsageRecord): Record<string, string | number> {
+  const reasonCode = record.success ? "completed" : record.failureCategory ?? "unknown";
+  return {
+    event: "ai_coach",
+    outcome: record.success ? "success" : "failure",
+    reasonCode,
+    correlationId: randomUUID(),
+    providerAttempts: Math.max(0, Math.floor(record.attempts)),
+    toolCalls: 0,
+    durationMs: Math.max(0, Math.floor(record.latencyMs)),
+    status: record.success ? 200 : 503,
+  };
+}
 export type GeminiSdkFactory = (apiKey: string, httpOptions: GeminiHttpOptions) => GeminiGenerateContentClient;
 
 export const GEMINI_SDK_HTTP_OPTIONS: GeminiHttpOptions = {
@@ -210,7 +224,7 @@ export class GeminiAiCoachProvider implements AiCoachProvider {
     this.sleep = options.sleep ?? sleepWithAbort;
     this.random = options.random ?? Math.random;
     this.minimumAttemptBudgetMs = options.minimumAttemptBudgetMs ?? GEMINI_MIN_ATTEMPT_BUDGET_MS;
-    this.logger = options.logger ?? ((record) => console.info(JSON.stringify(record)));
+    this.logger = options.logger ?? ((record) => console.info(JSON.stringify(toSafeAiCoachSecurityEvent(record))));
     this.clientFactory = options.clientFactory;
     if (options.client) this.clients.set(this.modelChain[0], options.client);
     else if (options.apiKey?.trim()) {

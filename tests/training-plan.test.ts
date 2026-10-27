@@ -289,6 +289,74 @@ test("unknown tools, invalid arguments, malformed proposals, and malformed final
   assert.equal(forgedResult.ok, false);
 });
 
+test("prototype tool names, secret-bearing output, and ungrounded finals never dispatch or reach later model input", async () => {
+  // W05 has no user-text channel; this malicious fake proposal tests execution policy, not live-model prompt-injection immunity.
+  const request = req();
+  const before = JSON.stringify(request);
+  for (const name of ["constructor", "toString", "read_files", "open_url", "not_a_tool"]) {
+    let dispatches = 0;
+    const provider = new ScriptedTrainingPlanProvider([{ output: { kind: "tool_call", tool: name, arguments: {} } }]);
+    const result = await new TrainingPlanOrchestrator({
+      logger: () => undefined,
+      toolRegistryFactory: (valid) => new TrainingPlanToolRegistry(valid, {
+        get_recent_run_evidence() { dispatches += 1; return {}; },
+        evaluate_previous_training_plan() { dispatches += 1; return {}; },
+      }),
+    }).run(request, provider);
+    assert.equal(result.terminal, "unknown_tool", name);
+    assert.equal(result.counters.toolCalls, 0, name);
+    assert.equal(dispatches, 0, name);
+  }
+
+  const sentinel = "W08_SERVER_SECRET_DO_NOT_EXPOSE";
+  const records: Array<Record<string, string | number | boolean>> = [];
+  let handlerCalls = 0;
+  const invalidResult = new ScriptedTrainingPlanProvider([{ output: { kind: "tool_call", tool: "get_recent_run_evidence", arguments: { limit: 1 } } }]);
+  const invalid = await new TrainingPlanOrchestrator({
+    logger: (record) => records.push(record),
+    toolRegistryFactory: (valid) => new TrainingPlanToolRegistry(valid, {
+      get_recent_run_evidence() { handlerCalls += 1; return { kind: "recent_run_evidence", runs: [], secret: sentinel }; },
+      evaluate_previous_training_plan() { handlerCalls += 1; return null; },
+    }),
+  }).run(request, invalidResult);
+  assert.equal(invalid.terminal, "invalid_tool_result");
+  assert.equal(invalidResult.callCount, 1);
+  assert.equal(handlerCalls, 1);
+  assert.equal(JSON.stringify(invalidResult.inputs).includes(sentinel), false);
+  assert.equal(JSON.stringify(records).includes(sentinel), false);
+  assert.equal(JSON.stringify(request), before, "read-only tools leave canonical input/game state unchanged");
+
+  const extraProposal = new ScriptedTrainingPlanProvider([{ output: { kind: "tool_call", tool: "get_recent_run_evidence", arguments: { limit: 1 }, secret: sentinel } }]);
+  const rejectedExtra = await new TrainingPlanOrchestrator({ logger: () => undefined }).run(request, extraProposal);
+  assert.equal(rejectedExtra.terminal, "invalid_model_proposal");
+  assert.equal(rejectedExtra.counters.toolCalls, 0);
+
+  const ungrounded = new ScriptedTrainingPlanProvider([
+    { output: { kind: "tool_call", tool: "get_recent_run_evidence", arguments: { limit: 1 } } },
+    { output: { kind: "final", result: { ...successFor(request).plan, summary: "forged", evidence: [{ source: "recent_run_evidence", metric: "threat_offensive_rate", runSequences: [1], opportunities: 99, undesirable: 0 }] } } },
+  ]);
+  const finalFailure = await new TrainingPlanOrchestrator({ logger: () => undefined }).run(request, ungrounded);
+  assert.equal(finalFailure.terminal, "invalid_final_result");
+  assert.equal(finalFailure.ok, false);
+});
+
+test("security logs contain only allowlisted fields and reject newline/sentinel correlation text", async () => {
+  const sentinel = "W08_SERVER_SECRET_DO_NOT_EXPOSE";
+  const records: Array<Record<string, string | number | boolean>> = [];
+  const provider = new ScriptedTrainingPlanProvider([{ error: "permanent" }]);
+  await new TrainingPlanOrchestrator({
+    logger: (record) => records.push(record),
+    runIdFactory: () => `${sentinel}\nforged_event=true`,
+  }).run(req(), provider);
+  const allowed = new Set(["event", "outcome", "reasonCode", "correlationId", "providerAttempts", "toolCalls", "durationMs", "status"]);
+  assert.equal(records.length, 1);
+  assert.deepEqual(Object.keys(records[0]!).sort(), [...allowed].sort());
+  const serialized = JSON.stringify(records);
+  assert.equal(serialized.includes(sentinel), false);
+  assert.equal(serialized.includes("forged_event"), false);
+  assert.doesNotMatch(serialized, /[\r\n]/);
+});
+
 test("invalid tool output never reaches the next model step and dispatched calls are counted", async () => {
   const request = req();
   let handlerCalls = 0;

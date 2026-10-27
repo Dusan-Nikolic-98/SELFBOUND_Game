@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { randomUUID } from "node:crypto";
 import {
   CORE_TRAINING_PLAN_TOOLS,
   TrainingPlanToolRegistry,
@@ -55,7 +56,6 @@ export type TrainingPlanOrchestratorOptions = {
   maxToolCallsForTest?: number;
 };
 
-let nextRunId = 1;
 const ALLOWLIST = new Set<string>(CORE_TRAINING_PLAN_TOOLS);
 
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
@@ -113,7 +113,7 @@ export class TrainingPlanOrchestrator {
     this.clearTimer = options.clearTimer ?? clearTimeout;
     this.sleep = options.sleep ?? sleepAbortable;
     this.backoffMs = Math.max(0, Math.min(MAX_RETRY_BACKOFF_MS, options.retryBackoffMs ?? 100));
-    this.makeRunId = options.runIdFactory ?? (() => `training-plan-${nextRunId++}`);
+    this.makeRunId = options.runIdFactory ?? (() => randomUUID());
     this.logger = options.logger ?? ((record) => console.info(JSON.stringify(record)));
     this.toolRegistryFactory = options.toolRegistryFactory ?? ((request) => new TrainingPlanToolRegistry(request));
     this.maxToolCalls = options.maxToolCallsForTest ?? MAX_TOOL_CALLS;
@@ -138,8 +138,6 @@ export class TrainingPlanOrchestrator {
     const attemptedActions = new Set<string>();
     let terminal: TrainingPlanTerminalReason = "provider_failed";
     let successful: TrainingPlanSuccess | undefined;
-    safelyLog(this.logger, { event: "training_plan_start", runId, provider: provider.constructor.name === "FakeTrainingPlanProvider" || provider.constructor.name === "ScriptedTrainingPlanProvider" ? "fake" : "configured" });
-
     const finish = (reason: TrainingPlanTerminalReason, result?: TrainingPlanSuccess): TrainingPlanRunResult => {
       terminal = reason;
       successful = result;
@@ -166,8 +164,6 @@ export class TrainingPlanOrchestrator {
           if (counters.providerAttempts >= MAX_PROVIDER_ATTEMPTS) return finish("provider_attempt_limit");
           const timeoutMs = Math.min(MAX_PROVIDER_ATTEMPT_MS, remaining);
           counters.providerAttempts += 1;
-          const attemptNumber = counters.providerAttempts;
-          safelyLog(this.logger, { event: "training_plan_provider_attempt", runId, step: counters.agentSteps, attempt: attemptNumber, timeoutMs, remainingMs: Math.max(0, Math.floor(remaining)) });
           try {
             proposalValue = await this.providerAttempt(provider, stepInput, timeoutMs, runController.signal, deadline, () => this.now());
             if (this.now() >= deadline) return finish("deadline");
@@ -235,7 +231,6 @@ export class TrainingPlanOrchestrator {
         toolResults.push(normalized);
         if (normalized.kind === "recent_run_evidence") recentResults.push(normalized);
         else evaluationResult = normalized;
-        safelyLog(this.logger, { event: "training_plan_tool_dispatched", runId, tool, toolCalls: counters.toolCalls, elapsedMs: Math.max(0, Math.floor(this.now() - startedAt)) });
       }
     } catch {
       return finish(parentSignal?.aborted ? "cancelled" : deadlineReached ? "deadline" : "provider_failed");
@@ -243,8 +238,10 @@ export class TrainingPlanOrchestrator {
       this.clearTimer(deadlineTimer);
       parentSignal?.removeEventListener("abort", abortFromParent);
       safelyLog(this.logger, {
-        event: "training_plan_end", runId, terminal, steps: counters.agentSteps, providerAttempts: counters.providerAttempts,
-        toolCalls: counters.toolCalls, elapsedMs: Math.max(0, Math.floor(this.now() - startedAt)), success: Boolean(successful),
+        event: "training_plan", outcome: successful ? "success" : "failure", reasonCode: terminal,
+        correlationId: /^[a-zA-Z0-9-]{1,64}$/.test(runId) ? runId : "invalid-correlation-id",
+        providerAttempts: counters.providerAttempts, toolCalls: counters.toolCalls,
+        durationMs: Math.max(0, Math.floor(this.now() - startedAt)), status: successful ? 200 : 503,
       });
     }
   }

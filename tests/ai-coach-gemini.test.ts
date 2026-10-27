@@ -20,6 +20,7 @@ import {
   createGeminiSdkFactory,
   buildGeminiGenerateContentRequest,
   GEMINI_SDK_HTTP_OPTIONS,
+  toSafeAiCoachSecurityEvent,
 } from "../backend/src/gemini-ai-coach-provider.js";
 import { AiCoachProvider, FakeAiCoachProvider } from "../backend/src/ai-coach-provider.js";
 import { createServer } from "../backend/src/server.js";
@@ -143,6 +144,21 @@ test("primary first-call success has no fallback or repair", async () => {
   assert.equal(summary.attempts, 1);
   assert.equal(summary.fallbackUsed, false);
   assert.equal(summary.repairUsed, false);
+});
+
+test("production Coach security log projection excludes provider/model/content details", () => {
+  const sentinel = "W08_SERVER_SECRET_DO_NOT_EXPOSE";
+  const record: GeminiUsageRecord = {
+    operation: "ai.coach", provider: "gemini", model: sentinel, timestamp: `${sentinel}\nforged`, latencyMs: 12.8,
+    success: false, attempts: 2, fallbackUsed: true, repairUsed: false, failureCategory: "unknown",
+    inputTokens: 999, outputTokens: 999, totalTokens: 1998,
+  };
+  const event = toSafeAiCoachSecurityEvent(record);
+  assert.deepEqual(Object.keys(event).sort(), ["correlationId", "durationMs", "event", "outcome", "providerAttempts", "reasonCode", "status", "toolCalls"].sort());
+  assert.equal(event.outcome, "failure");
+  assert.equal(event.providerAttempts, 2);
+  assert.equal(JSON.stringify(event).includes(sentinel), false);
+  assert.doesNotMatch(JSON.stringify(event), /[\r\n]/);
 });
 
 test("malformed and contract-invalid provider output gets one repair then safe 503", async () => {

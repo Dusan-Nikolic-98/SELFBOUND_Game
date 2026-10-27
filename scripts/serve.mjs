@@ -14,6 +14,12 @@ const contentTypes = {
   ".json": "application/json; charset=utf-8",
   ".map": "application/json; charset=utf-8",
 };
+const securityHeaders = {
+  "Content-Security-Policy": "default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src http://127.0.0.1:3001 http://localhost:3001; form-action 'self'",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+};
 
 function getFilePath(requestUrl) {
   const url = new URL(requestUrl, `http://${host}:${port}`);
@@ -25,6 +31,7 @@ function getFilePath(requestUrl) {
 }
 
 const server = createServer(async (request, response) => {
+  for (const [name, value] of Object.entries(securityHeaders)) response.setHeader(name, value);
   try {
     const filePath = request.url ? getFilePath(request.url) : null;
     if (!filePath) {
