@@ -279,3 +279,23 @@ The focused W05 scenario matrix, including exact test sources and any unverified
 |---|---|
 | W04 `application/jsonp` | `tests/ai-coach-backend.test.ts`: rejected with 400 before provider invocation; ordinary JSON route coverage remains in the same suite. |
 | Scope | HTTP input-contract hardening only. No W03 gameplay rules or state changed; no W08 final evidence file was created in this implementation phase. |
+
+### W08 evidence documentation verification (2026-10-27)
+
+| Check | Result |
+|---|---|
+| Current full offline suite | PASS: `npm.cmd test`, 110 tests passed, 0 failed; fake/scripted providers and SDK transport doubles only. |
+| Current browser security suite | PASS: `npm.cmd run test:security:browser`; Edge/CDP reached plain-text DOM and enforced CSP assertions, and the frontend artifact sentinel scan passed. |
+| Current dependency audit | PASS: after switching to a clean user-owned temporary npm cache, both audit modes exited 0 with `found 0 vulnerabilities`; registry ping returned `PONG 288ms`. |
+| Evidence file | Added `docs/EVIDENCE_W08.md` with current results and explicit limits. No source, gameplay, or test changes were made in this pass. |
+
+The earlier W08 implementation entry above is historical for that implementation pass. This addendum records the separate documentation-pass results and does not overwrite the earlier record.
+
+### W08 dependency audit recovery (2026-10-27)
+
+| Check | Result |
+|---|---|
+| npm cache/registry recovery | PASS: a user-owned temporary cache verified successfully and `npm.cmd ping --registry=https://registry.npmjs.org/` returned `PONG 288ms`. |
+| Production dependency audit | PASS: `npm.cmd audit --cache "$env:TEMP\\selfbound-npm-cache" --prefer-online --omit=dev` exited 0 with `found 0 vulnerabilities`. |
+| Development dependency audit | PASS: `npm.cmd audit --cache "$env:TEMP\\selfbound-npm-cache" --prefer-online --include=dev` exited 0 with `found 0 vulnerabilities`. |
+| Decision | No dependency or lockfile change was needed; the previous `NOT COMPLETE` status is superseded for the current lockfile checkpoint. |

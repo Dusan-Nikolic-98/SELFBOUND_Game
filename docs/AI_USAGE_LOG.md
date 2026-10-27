@@ -81,3 +81,19 @@ For W05 runtime accounting, one explicit player click is one logical Agent Run. 
 - **Expected result:** preserve game rules and fake-default W05 success while adding server-side request limits, active CSP/security headers, adversarial runtime checks, and reproducible browser security coverage.
 - **Actual result:** added early W04/W05 body limits with a 10-second idle-read cutoff, one process-local 2-active/5-per-60-second limiter, response security headers, a production CSP, plain-text renderer helper, adversarial/runtime and request-limit tests, W04/W05 sanitized operational log projections, and an Edge/CDP browser runner. Typecheck/build passed; the complete offline suite passed 110/110; reachability passed all four targets; audits reported 0 vulnerabilities for production and development dependencies; `git diff --check` passed. A transient `spawn EPERM` cleared on rerun and the final standard `npm test` passed. Browser bundle and HTTP header assertions were reached, but this environment denied Edge child-process creation (`spawn EPERM`), so DOM/CSP browser assertions remain unexecuted. No dependency was added and no live provider was used.
 - **Next decision:** rerun `npm test` and `npm run test:security:browser` in an environment that permits Node/Edge child-process creation, then complete the separately scoped W08 evidence documentation phase. No `EVIDENCE_W08.md` was created here.
+
+## W08 evidence documentation pass (2026-10-27)
+
+- **Phase:** W08 security evidence/documentation maintenance.
+- **Why:** create `docs/EVIDENCE_W08.md` from the current committed implementation and actual local verification, without changing source code, gameplay logic, or tests.
+- **Expected result:** a complete English W08 evidence record with checkpoint, architecture/data inventory, threat model, I1-I8, limits, T00-T17, CSRF, dependency audit status, before/after limitations, and safe event examples; no live provider and no secret inspection.
+- **Actual result:** read the required specifications, prior evidence, implementation, tests, package metadata/lockfile, frontend bundles/source maps, and W08 template. Current checks: typecheck passed; `npm test` passed 110/110; build passed; reachability passed all four targets; the real Edge/CDP browser script passed DOM/CSP assertions and the frontend artifact sentinel scan. Both `npm audit --omit=dev` and `npm audit --include=dev` failed at the npm advisory endpoint, so the evidence records the audit as incomplete rather than clean. Created `docs/EVIDENCE_W08.md`; no source/test change and no live provider call.
+- **Next decision:** rerun the two audit commands when registry/cache access is available, and optionally attach the fake backend to a browser CSP smoke run to observe the API round trip under CSP. Preserve the current evidence limitations until those checks are actually executed.
+
+## W08 dependency audit recovery (2026-10-27)
+
+- **Phase:** W08 dependency-audit evidence update.
+- **Why:** repeat the failed npm audit using a clean user-owned temporary cache after registry/cache access was restored.
+- **Expected result:** obtain actual advisory results for runtime and development dependencies without changing `package.json` or `package-lock.json`.
+- **Actual result:** cache verification completed; npm registry ping returned `PONG 288ms`; both `npm.cmd audit --cache "$env:TEMP\\selfbound-npm-cache" --prefer-online --omit=dev` and the corresponding `--include=dev` command exited 0 with `found 0 vulnerabilities`. No dependency or lockfile change was made.
+- **Next decision:** treat the current lockfile audit as PASS, retain the point-in-time limitation, and leave the remaining browser/API-under-CSP smoke test as a separate non-live-provider task.
